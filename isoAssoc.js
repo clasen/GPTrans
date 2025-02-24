@@ -173,6 +173,6 @@ export function isoAssoc(iso, prefix = '') {
         [prefix + 'ISO']: iso,
         [prefix + 'LANG']: langName[lang],
         [prefix + 'COUNTRY']: country ? countryName[country] : langName[lang],
-        [prefix + 'DENONYM']: country ? countryDenonym[country] : 'Universal',
+        [prefix + 'DENONYM']: country ? countryDenonym[country] : 'Neutral',
     };
 } 
