@@ -98,7 +98,6 @@ class Gptrans {
 
     async _processBatch() {
         const batch = Array.from(this.pendingTranslations.entries());
-        console.log(`Processing batch of ${batch.length} translations (${this.pendingCharCount} characters)`);
 
         // Clear pending translations and character count before awaiting translation
         this.pendingTranslations.clear();
