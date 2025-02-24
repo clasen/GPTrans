@@ -1,10 +1,10 @@
-# 🚀 Gptrans
+# 🚆 GPTrans
 
-Gptrans is an innovative, AI-powered translation library that makes localization effortless!
+The smarter way to translate: AI-powered, cache-optimized, globally ready.
 
 It intelligently batches and caches translation requests, ensuring blazing-fast results and reducing API calls.
 
-Whether you're building a multilingual website, a mobile app, or a localization tool, Gptrans delivers top-tier performance with minimal setup.
+Whether you're building a multilingual website, a mobile app, or a localization tool, GPTrans delivers top-tier performance with minimal setup.
 
 ## ✨ Features
 
@@ -25,9 +25,9 @@ npm install gptrans
 Here's a simple example to get you started:
 
 ```javascript
-import Gptrans from 'gptrans';
+import GPTrans from 'gptrans';
 
-const gptrans = new Gptrans({
+const gptrans = new GPTrans({
   target: 'es-AR',
   from: 'en-US',
   model: 'claude-3-5-sonnet-20241022'
@@ -35,6 +35,9 @@ const gptrans = new Gptrans({
 
 // Translate text with parameter substitution
 console.log(gptrans.t('Hello, {name}!', { name: 'John' }));
+
+// Set context for gender-aware translations
+console.log(gptrans.setContext('Message is for a woman').t('You are very good'));
 
 // Other translation examples
 console.log(gptrans.t('Withdraw'));

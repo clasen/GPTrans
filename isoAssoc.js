@@ -157,20 +157,22 @@ export function isoAssoc(iso, prefix = '') {
         throw new Error('ISO code is required');
     }
 
-    const [lang, country] = iso.toLowerCase().split('-');
+    const parts = iso.toLowerCase().split('-');
+    const lang = parts[0];
+    const country = parts.length > 1 ? parts[1] : null;
 
     if (!langName[lang]) {
         throw new Error(`Invalid language code: ${lang}`);
     }
 
-    if (!countryName[country]) {
+    if (country && !countryName[country]) {
         throw new Error(`Invalid country code: ${country}`);
     }
 
     return {
         [prefix + 'ISO']: iso,
         [prefix + 'LANG']: langName[lang],
-        [prefix + 'COUNTRY']: countryName[country],
-        [prefix + 'DENONYM']: countryDenonym[country],
+        [prefix + 'COUNTRY']: country ? countryName[country] : langName[lang],
+        [prefix + 'DENONYM']: country ? countryDenonym[country] : 'Universal',
     };
 } 

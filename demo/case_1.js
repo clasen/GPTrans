@@ -21,8 +21,16 @@ const es2ar = new GPTrans({
     model: 'claude-3-5-sonnet-20241022',
 });
 
-
-
-console.log(es2ar.setContext('El mensaje es para un hombre').t('Eres muy bueno'));
-
+console.log(es2ar.t('Eres muy bueno'));
 console.log(es2ar.setContext('El mensaje es para una mujer').t('Eres muy bueno'));
+console.log(es2ar.setContext().t('Tienes fuego?'));
+
+// Case 3
+const ar2es = new GPTrans({
+    from: 'es-AR',
+    target: 'es-ES',
+    model: 'claude-3-5-sonnet-20241022',
+});
+
+console.log(ar2es.t('¿Tenés fuego?'));
+

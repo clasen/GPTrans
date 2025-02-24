@@ -6,7 +6,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/clasen/GPTrans.git"
-  },  
+  },
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -16,8 +16,9 @@
   "bugs": {
     "url": "https://github.com/clasen/GPTrans/issues"
   },
-  "homepage": "https://github.com/clasen/GPTrans#readme",  "dependencies": {
-    "deepbase": "^1.3.0",
+  "homepage": "https://github.com/clasen/GPTrans#readme",
+  "dependencies": {
+    "deepbase": "^1.3.2",
     "dotenv": "^16.4.7",
     "modelmix": "^2.8.0",
     "string-hash": "^1.1.3"

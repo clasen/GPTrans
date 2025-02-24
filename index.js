@@ -46,7 +46,7 @@ class Gptrans {
         };
     }
 
-    setContext(context) {
+    setContext(context = '') {
         if (this.context !== context && this.pendingTranslations.size > 0) {
             clearTimeout(this.debounceTimer);
             this._processBatch();
@@ -102,12 +102,14 @@ class Gptrans {
 
         // Clear pending translations and character count before awaiting translation
         this.pendingTranslations.clear();
+        this.modelConfig.options.max_tokens = this.pendingCharCount + 1000;
         this.pendingCharCount = 0;
 
         const textsToTranslate = batch.map(([_, text]) => text).join('\n---\n');
         const translations = await this._translate(textsToTranslate);
 
         const translatedTexts = translations.split('\n---\n');
+
         batch.forEach(([key], index) => {
             this.dbTarget.set(key, translatedTexts[index].trim());
         });
