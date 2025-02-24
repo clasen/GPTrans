@@ -73,7 +73,6 @@ When creating a new instance of Gptrans, you can customize:
 
 ```json
 {
-{
     "balanc_pephba": "Saldo",
     "transa_m1wmv2": "Transacción",
     "accoun_rtvnkg": "Cuenta",
