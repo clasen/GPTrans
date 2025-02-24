@@ -1,8 +1,22 @@
 {
   "name": "gptrans",
   "type": "module",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "🚆 GPTrans - The smarter AI-powered way to translate.",
+  "keywords": [
+    "translate",
+    "translation",
+    "ai",
+    "gpt",
+    "i18n",
+    "internationalization",
+    "localization",
+    "language",
+    "translation",
+    "translation",
+    "translator",
+    "clasen"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/clasen/GPTrans.git"
