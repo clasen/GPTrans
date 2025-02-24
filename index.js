@@ -2,6 +2,8 @@ import DeepBase from 'deepbase';
 import stringHash from 'string-hash';
 import { ModelMix, MixOpenAI, MixAnthropic } from 'modelmix';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
 import { isoAssoc } from './isoAssoc.js';
 dotenv.config();
@@ -21,7 +23,8 @@ class Gptrans {
         return this.#mmixInstance;
     }
 
-    constructor({ from = 'en-US', target = 'es-AR', model = 'gpt-4o-mini', batchThreshold = 1000, debounceTimeout = 500, promptFile = './prompt/translate.md', context = '' }) {
+    constructor({ from = 'en-US', target = 'es-AR', model = 'gpt-4o-mini', batchThreshold = 1000, debounceTimeout = 500, promptFile = null, context = '' }) {
+        const __dirname = dirname(fileURLToPath(import.meta.url));
         this.target = target;
         this.from = from;
         this.dbTarget = new DeepBase({ name: 'gptrans_' + this.target });
@@ -32,7 +35,7 @@ class Gptrans {
         this.pendingCharCount = 0; // Add character count tracker
         this.debounceTimer = null;
         this.modelKey = model;
-        this.promptFile = promptFile;
+        this.promptFile ??= join(__dirname, './prompt/translate.md');  // Convert to absolute path
         this.context = context;
         this.modelConfig = {
             config: {
