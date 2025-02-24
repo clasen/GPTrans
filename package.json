@@ -1,0 +1,25 @@
+{
+  "name": "gptrans",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "🚆 GPTrans - The smarter AI-powered way to translate.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/clasen/GPTrans.git"
+  },  
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Martin Clasen",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/clasen/GPTrans/issues"
+  },
+  "homepage": "https://github.com/clasen/GPTrans#readme",  "dependencies": {
+    "deepbase": "^1.3.0",
+    "dotenv": "^16.4.7",
+    "modelmix": "^2.8.0",
+    "string-hash": "^1.1.3"
+  }
+}
