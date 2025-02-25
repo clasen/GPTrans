@@ -20,6 +20,15 @@ Whether you're building a multilingual website, a mobile app, or a localization 
 npm install gptrans
 ```
 
+### 🌐 Environment Setup
+
+GPTrans uses dotenv for environment configuration. Create a `.env` file in your project root and add your API keys:
+
+```env
+OPENAI_API_KEY=your_openai_api_key
+ANTHROPIC_API_KEY=your_anthropic_api_key
+```
+
 ## 🚀 Quick Start
 
 Here's a simple example to get you started:
@@ -28,8 +37,8 @@ Here's a simple example to get you started:
 import GPTrans from 'gptrans';
 
 const gptrans = new GPTrans({
-  target: 'es-AR',
   from: 'en-US',
+  target: 'es-AR',
   model: 'claude-3-5-sonnet-20241022'
 });
 
@@ -52,13 +61,13 @@ console.log(gptrans.t('Card'));
 
 ## ⚙️ Configuration Options
 
-When creating a new instance of Gptrans, you can customize:
+When creating a new instance of GPTrans, you can customize:
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `target` | Target language locale | `'en-US'` |
-| `from` | Source language locale | `'es-AR'` |
-| `model` | Translation model key | - |
+| `from` | Source language locale | `es-AR` |
+| `target` | Target language locale | `en-US` |
+| `model` | Translation model key | `gpt-4o-mini` |
 | `batchThreshold` | Maximum number of characters to accumulate before triggering batch processing | `1000` |
 | `debounceTimeout` | Time in milliseconds to wait before processing translations | `500` |
 
@@ -82,25 +91,16 @@ When creating a new instance of Gptrans, you can customize:
 }
 ```
 
-## 🌐 Environment Setup
+## 🎉 Why Choose GPTrans?
 
-Gptrans uses dotenv for environment configuration. Create a `.env` file in your project root and add your API keys:
-
-```env
-OPENAI_API_KEY=your_openai_api_key
-ANTHROPIC_API_KEY=your_anthropic_api_key
-```
-
-## 🎉 Why Choose Gptrans?
-
-Gptrans stands out by combining advanced AI capabilities with efficient batching and caching. This means:
+GPTrans stands out by combining advanced AI capabilities with efficient batching and caching. This means:
 
 - **Speed:** Reduced API calls and instant retrieval of cached translations
 - **Quality:** Leverage state-of-the-art models for precise and context-aware translations
 - **Flexibility:** Tailor the tool to your specific localization needs with minimal effort
 - **Zero Maintenance:** Set it up once and forget about it - automatic updates and self-healing capabilities keep everything running smoothly
 
-If you're looking to streamline your translation workflow and bring your applications to a global audience effortlessly, Gptrans is the perfect choice!
+If you're looking to streamline your translation workflow and bring your applications to a global audience effortlessly, GPTrans is the perfect choice!
 
 ## Contributing
 
