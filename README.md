@@ -67,7 +67,7 @@ When creating a new instance of GPTrans, you can customize:
 |--------|-------------|---------|
 | `from` | Source language locale | `es-AR` |
 | `target` | Target language locale | `en-US` |
-| `model` | Translation model key | `gpt-4o-mini` |
+| `model` | Translation model key | `claude-3-7-sonnet` |
 | `batchThreshold` | Maximum number of characters to accumulate before triggering batch processing | `1000` |
 | `debounceTimeout` | Time in milliseconds to wait before processing translations | `500` |
 
@@ -101,6 +101,14 @@ GPTrans stands out by combining advanced AI capabilities with efficient batching
 - **Zero Maintenance:** Set it up once and forget about it - automatic updates and self-healing capabilities keep everything running smoothly
 
 If you're looking to streamline your translation workflow and bring your applications to a global audience effortlessly, GPTrans is the perfect choice!
+
+## 🔄 Preloading Translations
+
+You can preload translations for specific languages using the `preload` method. This is particularly useful when you want to initialize translations based on dynamically generated keys:
+
+```javascript
+await gptrans.preload({target:'ar'});
+```
 
 ## Contributing
 

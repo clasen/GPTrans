@@ -152,27 +152,49 @@ const langName = {
     'ms': 'Malay'
 };
 
+export function isLanguageAvailable(isoCode) {
+    if (!isoCode) return false;
+    
+    const parts = isoCode.toLowerCase().split('-');
+    const lang = parts[0];
+    const country = parts.length > 1 ? parts[1] : null;
+    
+    // Verificar si el idioma existe
+    if (!langName[lang]) return false;
+    
+    // Si hay código de país, verificar si existe
+    if (country && !countryName[country]) return false;
+    
+    return true;
+}
+
 export function isoAssoc(iso, prefix = '') {
     if (!iso) {
         throw new Error('ISO code is required');
+    }
+    
+    // Usar la nueva función para validar el ISO
+    if (!isLanguageAvailable(iso)) {
+        throw new Error(`Invalid ISO code: ${iso}`);
     }
 
     const parts = iso.toLowerCase().split('-');
     const lang = parts[0];
     const country = parts.length > 1 ? parts[1] : null;
 
-    if (!langName[lang]) {
-        throw new Error(`Invalid language code: ${lang}`);
-    }
+    let denonym = country ? countryDenonym[country] : 'Neutral';
 
-    if (country && !countryName[country]) {
-        throw new Error(`Invalid country code: ${country}`);
+    if (lang === 'zh' && !country) {
+        denonym = 'Simplified';
+    }
+    else if (lang === 'ar' && !country) {
+        denonym = 'Standard';
     }
 
     return {
         [prefix + 'ISO']: iso,
         [prefix + 'LANG']: langName[lang],
         [prefix + 'COUNTRY']: country ? countryName[country] : langName[lang],
-        [prefix + 'DENONYM']: country ? countryDenonym[country] : 'Neutral',
+        [prefix + 'DENONYM']: denonym,
     };
 } 

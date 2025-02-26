@@ -1,14 +1,12 @@
 import DeepBase from 'deepbase';
 import stringHash from 'string-hash';
 import { ModelMix, MixOpenAI, MixAnthropic } from 'modelmix';
+import { isoAssoc, isLanguageAvailable } from './isoAssoc.js';
 import dotenv from 'dotenv';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
 
-import { isoAssoc } from './isoAssoc.js';
 dotenv.config();
 
-class Gptrans {
+class GPTrans {
     static #mmixInstance = null;
 
     static get mmix() {
@@ -23,30 +21,40 @@ class Gptrans {
         return this.#mmixInstance;
     }
 
-    constructor({ from = 'en-US', target = 'es-AR', model = 'gpt-4o-mini', batchThreshold = 1000, debounceTimeout = 500, promptFile = null, context = '' }) {
-        const __dirname = dirname(fileURLToPath(import.meta.url));
-        this.target = target;
-        this.from = from;
-        this.dbTarget = new DeepBase({ name: 'gptrans_' + this.target });
-        this.dbFrom = new DeepBase({ name: 'gptrans_from_' + this.from });
+    static isLanguageAvailable(langCode) {
+        return isLanguageAvailable(langCode);
+    }
+
+    constructor({ from = 'en-US', target = 'es-AR', model = 'claude-3-7-sonnet-20250219', batchThreshold = 1000, debounceTimeout = 500, promptFile = null, context = '' }) {
+        this.dbTarget = new DeepBase({ name: 'gptrans_' + target });
+        this.dbFrom = new DeepBase({ name: 'gptrans_from_' + from });
+
+        try {
+            this.replace_target = isoAssoc(target, 'TARGET_');
+            this.replace_from = isoAssoc(from, 'FROM_');
+        } catch (e) {
+            throw new Error(`Invalid target: ${target}`);
+        }
+
         this.batchThreshold = batchThreshold; // Now represents character count threshold
         this.debounceTimeout = debounceTimeout;
         this.pendingTranslations = new Map(); // [key, text]
         this.pendingCharCount = 0; // Add character count tracker
         this.debounceTimer = null;
         this.modelKey = model;
-        this.promptFile ??= join(__dirname, './prompt/translate.md');  // Convert to absolute path
+        this.promptFile = promptFile ?? new URL('./prompt/translate.md', import.meta.url).pathname;
         this.context = context;
         this.modelConfig = {
             config: {
                 max_history: 1,
                 debug: false,
                 bottleneck: {
-                    maxConcurrent: 5,
+                    maxConcurrent: 2,
                 }
             },
             options: { max_tokens: batchThreshold }
         };
+        this.processing = false;
     }
 
     setContext(context = '') {
@@ -100,6 +108,8 @@ class Gptrans {
     }
 
     async _processBatch() {
+        this.processing = true;
+
         const batch = Array.from(this.pendingTranslations.entries());
 
         // Clear pending translations and character count before awaiting translation
@@ -108,25 +118,31 @@ class Gptrans {
         this.pendingCharCount = 0;
 
         const textsToTranslate = batch.map(([_, text]) => text).join('\n---\n');
-        const translations = await this._translate(textsToTranslate);
+        try {
+            const translations = await this._translate(textsToTranslate);
+            const translatedTexts = translations.split('\n---\n');
 
-        const translatedTexts = translations.split('\n---\n');
+            batch.forEach(([key], index) => {
+                this.dbTarget.set(key, translatedTexts[index].trim());
+            });
 
-        batch.forEach(([key], index) => {
-            this.dbTarget.set(key, translatedTexts[index].trim());
-        });
+        } catch (e) {
+            console.error(e);
+        }
+
+        this.processing = false;
     }
 
     async _translate(text) {
-        const model = Gptrans.mmix.create(this.modelKey, this.modelConfig);
+        const model = GPTrans.mmix.create(this.modelKey, this.modelConfig);
 
         model.setSystem("You are an expert translator specialized in literary translation between FROM_LANG and TARGET_DENONYM TARGET_LANG.");
 
         model.addTextFromFile(this.promptFile);
 
         model.replace({ INPUT: text, CONTEXT: this.context });
-        model.replace(isoAssoc(this.target, 'TARGET_'));
-        model.replace(isoAssoc(this.from, 'FROM_'));
+        model.replace(this.replace_target);
+        model.replace(this.replace_from);
 
         const response = await model.message();
 
@@ -150,6 +166,37 @@ class Gptrans {
         key += stringHash(text + this.context).toString(36);
         return key;
     }
+
+    async preload({ target = this.replace_target.TARGET_ISO, model = this.modelKey, from = this.replace_from.FROM_ISO, batchThreshold = this.batchThreshold, debounceTimeout = this.debounceTimeout } = {}) {
+
+        // Create new GPTrans instance for the target language
+        const translator = new GPTrans({
+            from,
+            target,
+            model,
+            batchThreshold,
+            debounceTimeout,
+        });
+
+        // Process all entries in batches
+        for (const [key, text] of this.dbFrom.entries()) {
+            translator.get(key, text);
+        }
+
+        // Wait for any pending translations to complete
+        if (translator.pendingTranslations.size > 0) {
+            await new Promise(resolve => {
+                const checkInterval = setInterval(() => {
+                    if (translator.processing === false && translator.pendingTranslations.size === 0) {
+                        clearInterval(checkInterval);
+                        resolve();
+                    }
+                }, 1000);
+            });
+        }
+
+        return translator;
+    }
 }
 
-export default Gptrans;
+export default GPTrans;
