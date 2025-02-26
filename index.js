@@ -52,7 +52,10 @@ class GPTrans {
                     maxConcurrent: 2,
                 }
             },
-            options: { max_tokens: batchThreshold }
+            options: { 
+                max_tokens: batchThreshold,
+                temperature: 0
+            }
         };
         this.processing = false;
     }
