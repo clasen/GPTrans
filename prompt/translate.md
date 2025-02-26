@@ -14,6 +14,7 @@ INPUT
    - **Wordplay and humor:** When it's impossible to directly translate wordplay, find a resource that recreates the playful effect.
    - **Idioms:** Do not introduce new idioms or expressions that are not present in the original text.
    - **Variables:** Do not translate content between curly braces {variable}. These are system variables and must remain exactly the same.
+   - **Proper names:** Do not translate proper names (people, places, brands, etc.) unless they have an officially recognized translation in the target language.
 
 # Context
 CONTEXT
