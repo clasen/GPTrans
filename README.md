@@ -9,10 +9,10 @@ Whether you're building a multilingual website, a mobile app, or a localization 
 ## ✨ Features
 
 - **AI-Powered Translations:** Harness advanced models like OpenAI's GPT and Anthropic's Sonnet for high-quality translations
-- **Smart Batching & Debouncing:** Automatically groups translation requests to optimize API usage
-- **Caching with DeepBase:** Quickly retrieves cached translations to boost performance
+- **Smart Batching & Debouncing:** Translations are processed in batches, not only for efficiency but also to provide better context. By sending multiple related texts together, the AI model can better understand the overall context and produce more accurate and consistent translations across related terms and phrases.
+- **Caching with JSON:** Quickly retrieves cached translations to boost performance
 - **Parameter Substitution:** Dynamically replace placeholders in your translations
-- **Flexible Configuration:** Customize source and target locales, model keys, and batching settings to fit your needs
+- **Smart Context Handling:** Add contextual information to improve translation accuracy. Perfect for gender-aware translations, domain-specific content, or any scenario where additional context helps produce better results. The context is automatically cleared after each translation to prevent unintended effects.
 
 ## 📦 Installation
 
@@ -65,20 +65,31 @@ When creating a new instance of GPTrans, you can customize:
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `from` | Source language locale | `es-AR` |
-| `target` | Target language locale | `en-US` |
+| `from` | Source language locale (BCP 47) | `es-AR` |
+| `target` | Target language locale (BCP 47) | `en-US` |
 | `model` | Translation model key | `claude-3-7-sonnet` |
 | `batchThreshold` | Maximum number of characters to accumulate before triggering batch processing | `1000` |
 | `debounceTimeout` | Time in milliseconds to wait before processing translations | `500` |
 
+### BCP 47 Language Tags
+
+GPTrans uses BCP 47 language tags for language specification. BCP 47 is the standard for language tags that combines language, script, and region codes. Here are some common examples:
+
+- `en-US` - English (United States)
+- `es-AR` - Spanish (Argentina)
+- `pt-BR` - Portuguese (Brazil)
+
+For simplified or universal language codes, you can omit the region specification:
+- `es` - Spanish (Universal)
+
 ## 🔍 How It Works
 
 1. **First-Time Translation Behavior:** On the first request, Gptrans will return the original text while processing the translation in the background. This ensures your application remains responsive without waiting for API calls.
-2. **Translation Caching:** Once processed, translations are stored in `db/gptrans_<iso>.json`. Subsequent requests for the same text will be served instantly from the cache.
-3. **Smart Batch Processing:** Translations are processed in batches, providing better context for more accurate results.
+2. **Translation Caching:** Once processed, translations are stored in `db/gptrans_<tag>.json`. Subsequent requests for the same text will be served instantly from the cache.
+3. **Smart Batch Processing:** Automatically groups translation requests to optimize API usage and provide better context.
 4. **Dynamic Model Integration:** Easily plug in multiple AI translation providers with the ModelMix library.
 5. **Customizable Prompts:** Load and modify translation prompts (see the `prompt/translate.md` file) to fine-tune the translation output.
-6. **Manual Corrections:** A JSON file stores key-translation pairs, allowing you to override specific translations and make manual corrections when needed. Simply edit the `db/gptrans_<iso>.json` file:
+6. **Manual Corrections:** A JSON file stores key-translation pairs, allowing you to override specific translations and make manual corrections when needed. Simply edit the `db/gptrans_<tag>.json` file:
 
 ```json
 {
