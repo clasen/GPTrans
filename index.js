@@ -102,13 +102,13 @@ class GPTrans {
                 this.dbFrom.set(this.context, key, text);
             }
 
-            if (this.freeze) {
-                console.log(`Freeze mode: [${key}] ${text}`);
+            // Skip translation if context is empty and languages are the same
+            if (!this.context && this.replaceFrom.FROM_ISO === this.replaceTarget.TARGET_ISO) {
                 return text;
             }
 
-            // Skip translation if context is empty and languages are the same
-            if (!this.context && this.replaceFrom.FROM_ISO === this.replaceTarget.TARGET_ISO) {
+            if (this.freeze) {
+                console.log(`Freeze mode: [${key}] ${text}`);
                 return text;
             }
 
