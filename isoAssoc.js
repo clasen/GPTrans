@@ -180,10 +180,14 @@ export function isoAssoc(iso, prefix = '') {
 
     const parts = iso.toLowerCase().split('-');
     const lang = parts[0];
-    const country = parts.length > 1 ? parts[1] : null;
+    let country = parts.length > 1 ? parts[1] : null;
+
+    if (lang === 'en' && !country) {
+        country = 'us';
+    }
 
     let denonym = country ? countryDenonym[country] : 'Neutral';
-
+    
     if (lang === 'zh' && !country) {
         denonym = 'Simplified';
     }

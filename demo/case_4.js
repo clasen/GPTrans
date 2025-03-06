@@ -1,10 +1,10 @@
 import GPTrans from '../index.js';
 
 
-// Case 2: Translate from Spanish Spain to Spanish Argentina
+// Case 2: Translate from Spanish to English
 const model = new GPTrans({
     from: 'es',
-    target: 'es',
+    target: 'en',
 });
 
 await model.preload();

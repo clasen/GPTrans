@@ -2,7 +2,9 @@
 Translation from FROM_ISO to TARGET_ISO (TARGET_DENONYM TARGET_LANG) with cultural adaptations.
 
 ## Text to translate
+```
 INPUT
+```
 
 # Return Format
    - Provide the final translation within a code block using ```.

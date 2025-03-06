@@ -65,11 +65,12 @@ When creating a new instance of GPTrans, you can customize:
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `from` | Source language locale (BCP 47) | `es-AR` |
-| `target` | Target language locale (BCP 47) | `en-US` |
+| `from` | Source language locale (BCP 47) | `en-US` |
+| `target` | Target language locale (BCP 47) | `es` |
 | `model` | Translation model key | `claude-3-7-sonnet` |
-| `batchThreshold` | Maximum number of characters to accumulate before triggering batch processing | `1000` |
+| `batchThreshold` | Maximum number of characters to accumulate before triggering batch processing | `1500` |
 | `debounceTimeout` | Time in milliseconds to wait before processing translations | `500` |
+| `freeze` | Freeze mode to prevent translations from being queued | `false` |
 
 ### BCP 47 Language Tags
 

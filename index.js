@@ -9,7 +9,16 @@ class GPTrans {
 
     static get mmix() {
         if (!this.#mmixInstance) {
-            const mmix = new ModelMix();
+            const mmix = new ModelMix({
+                config: {
+                    max_history: 1,
+                    debug: false,
+                    bottleneck: {
+                        minTime: 15000,
+                        maxConcurrent: 1
+                    }
+                }
+            });
 
             mmix.attach(new MixOpenAI());
             mmix.attach(new MixAnthropic());
@@ -23,7 +32,7 @@ class GPTrans {
         return isLanguageAvailable(langCode);
     }
 
-    constructor({ from = 'en-US', target = 'es-AR', model = 'claude-3-7-sonnet-20250219', batchThreshold = 1000, debounceTimeout = 500, promptFile = null, context = '' }) {
+    constructor({ from = 'en-US', target = 'es', model = 'claude-3-7-sonnet-20250219', batchThreshold = 1500, debounceTimeout = 500, promptFile = null, context = '', freeze = false }) {
 
         try {
             dotenv.config();
@@ -49,14 +58,8 @@ class GPTrans {
         this.modelKey = model;
         this.promptFile = promptFile ?? new URL('./prompt/translate.md', import.meta.url).pathname;
         this.context = context;
+        this.freeze = freeze;
         this.modelConfig = {
-            config: {
-                max_history: 1,
-                debug: false,
-                bottleneck: {
-                    maxConcurrent: 2,
-                }
-            },
             options: {
                 max_tokens: batchThreshold,
                 temperature: 0
@@ -85,12 +88,23 @@ class GPTrans {
     }
 
     get(key, text) {
+
+        if (!text || !text.trim()) {
+            return text;
+        }
+
         const contextHash = this._hash(this.context);
         const translation = this.dbTarget.get(contextHash, key);
 
         if (!translation) {
+            
             if (!this.dbFrom.get(this.context, key)) {
                 this.dbFrom.set(this.context, key, text);
+            }
+
+            if (this.freeze) {
+                console.log(`Freeze mode: [${key}] ${text}`);
+                return text;
             }
 
             // Skip translation if context is empty and languages are the same
@@ -129,7 +143,11 @@ class GPTrans {
 
         // Clear pending translations and character count before awaiting translation
         this.pendingTranslations.clear();
+
         this.modelConfig.options.max_tokens = this.pendingCharCount + 1000;
+        const minTime = Math.floor((60000 / (8000 / this.pendingCharCount)) * 1.4);
+        GPTrans.mmix.limiter.updateSettings({ minTime });
+
         this.pendingCharCount = 0;
 
         const textsToTranslate = batch.map(([_, text]) => text).join('\n---\n');
@@ -139,6 +157,14 @@ class GPTrans {
 
             const contextHash = this._hash(context);
             batch.forEach(([key], index) => {
+
+                if (!translatedTexts[index]) {
+                    console.log(translations);
+                    console.error(`No translation found for ${key}`);
+
+                    return;
+                }
+
                 this.dbTarget.set(contextHash, key, translatedTexts[index].trim());
             });
 
@@ -188,38 +214,30 @@ class GPTrans {
         return stringHash(input).toString(36);
     }
 
-    async preload({ target = this.replaceTarget.TARGET_ISO, model = this.modelKey, from = this.replaceFrom.FROM_ISO, batchThreshold = this.batchThreshold, debounceTimeout = this.debounceTimeout } = {}) {
-
-        // Create new GPTrans instance for the target language
-        const translator = new GPTrans({
-            from,
-            target,
-            model,
-            batchThreshold,
-            debounceTimeout,
-        });
-
-        // Process all entries in batches
+    async preload() {
         for (const [context, pairs] of this.dbFrom.entries()) {
-            translator.setContext(context);
+            this.setContext(context);
             for (const [key, text] of Object.entries(pairs)) {
-                translator.get(key, text);
+                this.get(key, text);
             }
         }
 
         // Wait for any pending translations to complete
-        if (translator.pendingTranslations.size > 0) {
-            await new Promise(resolve => {
-                const checkInterval = setInterval(() => {
-                    if (translator.processing === false && translator.pendingTranslations.size === 0) {
-                        clearInterval(checkInterval);
-                        resolve();
-                    }
-                }, 1000);
-            });
-        }
+        await new Promise(resolve => {
+            const checkInterval = setInterval(() => {
+                if (this.dbFrom.keys().length === this.dbTarget.keys().length) {
+                    clearInterval(checkInterval);
+                    resolve();
+                }
+            }, 100);
+        });
 
-        return translator;
+        return this;
+    }
+
+    setFreeze(freeze = true) {
+        this.freeze = freeze;
+        return this;
     }
 }
 
