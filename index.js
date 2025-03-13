@@ -98,7 +98,7 @@ class GPTrans {
 
         if (!translation) {
             
-            if (!this.dbFrom.get(this.context, key)) {
+            if (!this.freeze && !this.dbFrom.get(this.context, key)) {
                 this.dbFrom.set(this.context, key, text);
             }
 
