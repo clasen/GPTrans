@@ -65,7 +65,7 @@ class GPTrans {
                 temperature: 0
             }
         };
-        this.processing = false;
+        this.divider = '------';
     }
 
     setContext(context = '') {
@@ -137,7 +137,6 @@ class GPTrans {
     }
 
     async _processBatch(context) {
-        this.processing = true;
 
         const batch = Array.from(this.pendingTranslations.entries());
 
@@ -150,10 +149,10 @@ class GPTrans {
 
         this.pendingCharCount = 0;
 
-        const textsToTranslate = batch.map(([_, text]) => text).join('\n---\n');
+        const textsToTranslate = batch.map(([_, text]) => text).join(`\n${this.divider}\n`);
         try {
             const translations = await this._translate(textsToTranslate);
-            const translatedTexts = translations.split('\n---\n');
+            const translatedTexts = translations.split(`\n${this.divider}\n`);
 
             const contextHash = this._hash(context);
             batch.forEach(([key], index) => {
@@ -171,8 +170,6 @@ class GPTrans {
         } catch (e) {
             console.error(e);
         }
-
-        this.processing = false;
     }
 
     async _translate(text) {
