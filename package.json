@@ -1,7 +1,7 @@
 {
   "name": "gptrans",
   "type": "module",
-  "version": "1.5.8",
+  "version": "1.6.0",
   "description": "🚆 GPTrans - The smarter AI-powered way to translate.",
   "keywords": [
     "translate",
@@ -34,7 +34,7 @@
   "dependencies": {
     "deepbase": "^1.4.8",
     "dotenv": "^16.4.7",
-    "modelmix": "^2.9.0",
+    "modelmix": "^2.9.2",
     "string-hash": "^1.1.3"
   }
 }

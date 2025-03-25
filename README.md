@@ -67,6 +67,7 @@ When creating a new instance of GPTrans, you can customize:
 |--------|-------------|---------|
 | `from` | Source language locale (BCP 47) | `en-US` |
 | `target` | Target language locale (BCP 47) | `es` |
+| `model` | Translation model key or array of models for fallback | `claude-3-7-sonnet` |
 | `model` | Translation model key | `claude-3-7-sonnet` |
 | `batchThreshold` | Maximum number of characters to accumulate before triggering batch processing | `1500` |
 | `debounceTimeout` | Time in milliseconds to wait before processing translations | `500` |
@@ -119,8 +120,24 @@ If you're looking to streamline your translation workflow and bring your applica
 You can preload translations for specific languages using the `preload` method. This is particularly useful when you want to initialize translations based on dynamically generated keys:
 
 ```javascript
-await gptrans.preload({target:'ar'});
+await gptrans.preload({ target:'ar' });
 ```
+
+### Model Fallback System
+
+GPTrans supports a fallback mechanism for translation models. Instead of providing a single model, you can pass an array of models:
+
+```javascript
+const translator = new GPTrans({
+  model: ['claude-3-7-sonnet-20250219', 'o3-mini-2025-01-31'],
+  // ... other options
+});
+```
+
+When using multiple models:
+- The first model in the array is used as the primary translation service
+- If the primary model fails (due to API errors, rate limits, etc.), GPTrans automatically falls back to the next model
+- This ensures higher availability and resilience of your translation service
 
 ## Contributing
 
