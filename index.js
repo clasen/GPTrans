@@ -40,8 +40,9 @@ class GPTrans {
 
         }
 
-        this.dbTarget = new DeepBase({ name: 'gptrans_' + target });
-        this.dbFrom = new DeepBase({ name: 'gptrans_from_' + from });
+        const path = new URL('../../db', import.meta.url).pathname;
+        this.dbTarget = new DeepBase({ name: 'gptrans_' + target, path });
+        this.dbFrom = new DeepBase({ name: 'gptrans_from_' + from, path });
 
         try {
             this.replaceTarget = isoAssoc(target, 'TARGET_');
