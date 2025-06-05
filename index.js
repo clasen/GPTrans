@@ -98,7 +98,7 @@ class GPTrans {
         const translation = this.dbTarget.get(contextHash, key);
 
         if (!translation) {
-            
+
             if (!this.freeze && !this.dbFrom.get(this.context, key)) {
                 this.dbFrom.set(this.context, key, text);
             }
@@ -213,6 +213,11 @@ class GPTrans {
     }
 
     async preload() {
+
+        if (!this.context && this.replaceFrom.FROM_ISO === this.replaceTarget.TARGET_ISO) {
+            return this;
+        }
+
         for (const [context, pairs] of this.dbFrom.entries()) {
             this.setContext(context);
             for (const [key, text] of Object.entries(pairs)) {
