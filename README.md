@@ -39,7 +39,7 @@ import GPTrans from 'gptrans';
 const gptrans = new GPTrans({
   from: 'en-US',
   target: 'es-AR',
-  model: 'claude-3-5-sonnet-20241022'
+  model: 'sonnet45'
 });
 
 // Translate text with parameter substitution
@@ -67,7 +67,7 @@ When creating a new instance of GPTrans, you can customize:
 |--------|-------------|---------|
 | `from` | Source language locale (BCP 47) | `en-US` |
 | `target` | Target language locale (BCP 47) | `es` |
-| `model` | Translation model key or array of models for fallback | `claude-3-7-sonnet` |
+| `model` | Translation model key or array of models for fallback | `sonnet45` `gpt41` |
 | `batchThreshold` | Maximum number of characters to accumulate before triggering batch processing | `1500` |
 | `debounceTimeout` | Time in milliseconds to wait before processing translations | `500` |
 | `freeze` | Freeze mode to prevent translations from being queued | `false` |
@@ -128,7 +128,7 @@ GPTrans supports a fallback mechanism for translation models. Instead of providi
 
 ```javascript
 const translator = new GPTrans({
-  model: ['claude-3-7-sonnet-20250219', 'o3-mini-2025-01-31'],
+  model: ['claude37', 'gpt41'],
   // ... other options
 });
 ```
