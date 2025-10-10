@@ -1,8 +1,6 @@
 import GPTrans from '../index.js';
 
-const gptrans = new GPTrans({
-    model: 'claude-3-5-sonnet-20241022',
-});
+const gptrans = new GPTrans({ model: 'sonnet45' });
 
 console.log(gptrans.t('Hello, {name}!', { name: 'Anya' }));
 
@@ -18,7 +16,7 @@ console.log(gptrans.t('Card'));
 const es2ar = new GPTrans({
     from: 'es-ES',
     target: 'es-AR',
-    model: 'claude-3-5-sonnet-20241022',
+    model: 'sonnet37'
 });
 
 console.log(es2ar.t('Eres muy bueno'));
@@ -29,7 +27,7 @@ console.log(es2ar.setContext().t('Tienes fuego?'));
 const ar2es = new GPTrans({
     from: 'es-AR',
     target: 'es-ES',
-    model: 'claude-3-5-sonnet-20241022',
+    model: 'gpt41'
 });
 
 console.log(ar2es.t('¿Tenés fuego?'));

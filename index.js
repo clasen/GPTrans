@@ -1,14 +1,16 @@
 import DeepBase from 'deepbase';
 import stringHash from 'string-hash';
-import { ModelMix, MixOpenAI, MixAnthropic } from 'modelmix';
+import { ModelMix } from 'modelmix';
 import { isoAssoc, isLanguageAvailable } from './isoAssoc.js';
 import dotenv from 'dotenv';
 
 class GPTrans {
-    static #mmixInstance = null;
+    static #mmixInstances = new Map();
 
-    static get mmix() {
-        if (!this.#mmixInstance) {
+    static mmix(models = 'sonnet45') {
+        const key = Array.isArray(models) ? models.join(',') : models;
+        
+        if (!this.#mmixInstances.has(key)) {
             const mmix = new ModelMix({
                 config: {
                     max_history: 1,
@@ -20,19 +22,30 @@ class GPTrans {
                 }
             });
 
-            mmix.attach(new MixOpenAI());
-            mmix.attach(new MixAnthropic());
+            // Chain models dynamically
+            let instance = mmix;
+            const modelArray = Array.isArray(models) ? models : [models];
+            
+            for (const model of modelArray) {
+                if (typeof instance[model] !== 'function') {
+                    throw new Error(
+                        `Model "${model}" is not available. Please check the model name. ` +
+                        `Available models include: gpt41, gpt4o, sonnet45, sonnet37, opus41, haiku35, etc.`
+                    );
+                }
+                instance = instance[model]();
+            }
 
-            this.#mmixInstance = mmix;
+            this.#mmixInstances.set(key, instance);
         }
-        return this.#mmixInstance;
+        return this.#mmixInstances.get(key);
     }
 
     static isLanguageAvailable(langCode) {
         return isLanguageAvailable(langCode);
     }
 
-    constructor({ from = 'en-US', target = 'es', model = 'claude-3-7-sonnet-20250219', batchThreshold = 1500, debounceTimeout = 500, promptFile = null, context = '', freeze = false }) {
+    constructor({ from = 'en-US', target = 'es', model = 'sonnet45', batchThreshold = 1500, debounceTimeout = 500, promptFile = null, context = '', freeze = false } = {}) {
 
         try {
             dotenv.config();
@@ -146,7 +159,7 @@ class GPTrans {
 
         this.modelConfig.options.max_tokens = this.pendingCharCount + 1000;
         const minTime = Math.floor((60000 / (8000 / this.pendingCharCount)) * 1.4);
-        GPTrans.mmix.limiter.updateSettings({ minTime });
+        GPTrans.mmix(this.modelKey).limiter.updateSettings({ minTime });
 
         this.pendingCharCount = 0;
 
@@ -175,7 +188,7 @@ class GPTrans {
 
     async _translate(text) {
 
-        const model = GPTrans.mmix.create(this.modelKey, this.modelConfig);
+        const model = GPTrans.mmix(this.modelKey);
 
         model.setSystem("You are an expert translator specialized in literary translation between FROM_LANG and TARGET_DENONYM TARGET_LANG.");
 

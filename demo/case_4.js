@@ -8,7 +8,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Initialize translator
 const model = new GPTrans({
-    model: ['claude-3-7-sonnet-20250219', 'o3-mini-2025-01-31'],
+    model: ['sonnet37', 'gpt41'],
     from: 'es',  // Assuming the source file is in Spanish
     target: 'en',
 });
