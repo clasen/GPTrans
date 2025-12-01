@@ -27,6 +27,7 @@ GPTrans uses dotenv for environment configuration. Create a `.env` file in your 
 ```env
 OPENAI_API_KEY=your_openai_api_key
 ANTHROPIC_API_KEY=your_anthropic_api_key
+GEMINI_API_KEY=for_image_translations
 ```
 
 ## 🚀 Quick Start
@@ -137,6 +138,33 @@ When using multiple models:
 - The first model in the array is used as the primary translation service
 - If the primary model fails (due to API errors, rate limits, etc.), GPTrans automatically falls back to the next model
 - This ensures higher availability and resilience of your translation service
+
+# 🖼️ Image Translation
+
+Intelligent image translation using Google's Gemini AI.
+
+## ✨ Smart Path Detection
+
+The translation system automatically detects if your image is already in a language folder and adjusts the output path accordingly:
+
+### Example
+
+```javascript
+// Input: en/image.jpg
+// Output: es/image.jpg (sibling folder at same level)
+
+const result = await gptrans.img('en/image.jpg');
+```
+
+**Directory Structure:**
+```
+project/
+├── en/
+│   └── image.jpg          ← Original
+└── es/
+    └── image.jpg          ← Translation (sibling folder)
+```
+
 
 ## Contributing
 

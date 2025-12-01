@@ -3,6 +3,9 @@ import stringHash from 'string-hash';
 import { ModelMix } from 'modelmix';
 import { isoAssoc, isLanguageAvailable } from './isoAssoc.js';
 import dotenv from 'dotenv';
+import { GeminiGenerator } from 'genmix';
+import fs from 'fs';
+import path from 'path';
 
 class GPTrans {
     static #mmixInstances = new Map();
@@ -254,6 +257,97 @@ class GPTrans {
     setFreeze(freeze = true) {
         this.freeze = freeze;
         return this;
+    }
+
+    async img(imagePath, options = {}) {
+        const {
+            quality = '1K',
+            numberOfImages = 1,
+            prompt = null
+        } = options;
+
+        // Parse image filename and extension
+        const parsedPath = path.parse(imagePath);
+        const filename = parsedPath.base;
+        const targetLang = this.replaceTarget.TARGET_ISO || 'en';
+        
+        // Check if image is already in a language folder
+        const dirName = path.basename(path.dirname(imagePath));
+        const parentDir = path.dirname(path.dirname(imagePath));
+        
+        // If the image is in a language folder (e.g., en/image.jpg)
+        // create the target at the same level (e.g., es/image.jpg)
+        // Otherwise, create it as a subfolder (e.g., ./image.jpg -> es/image.jpg)
+        let targetDir, targetPath;
+        
+        if (this._isLanguageFolder(dirName)) {
+            // Image is in a language folder: create sibling folder
+            targetDir = path.join(parentDir, targetLang);
+            targetPath = path.join(targetDir, filename);
+        } else {
+            // Image is not in a language folder: create subfolder
+            targetDir = path.join(path.dirname(imagePath), targetLang);
+            targetPath = path.join(targetDir, filename);
+        }
+
+        // Check if translated image already exists
+        if (fs.existsSync(targetPath)) {
+            return targetPath;
+        }
+
+        // Generate translated image and wait for completion
+        await this._generateTranslatedImage(imagePath, targetPath, targetDir, prompt, quality, numberOfImages);
+
+        // Return path of translated image
+        return targetPath;
+    }
+
+    _isLanguageFolder(folderName) {
+        // Check if folder name is a valid language code
+        // Common formats: en, es, pt, en-US, pt-BR, es-AR, etc.
+        const languageCodePattern = /^[a-z]{2}(-[A-Z]{2})?$/;
+        return languageCodePattern.test(folderName);
+    }
+
+    async _generateTranslatedImage(imagePath, targetPath, targetDir, customPrompt, quality, numberOfImages) {
+        try {
+            // Initialize GeminiGenerator
+            const generator = new GeminiGenerator();
+
+            // Generate translation prompt
+            const translationPrompt = customPrompt || 
+                `Translate all text in this image to ${this.replaceTarget.TARGET_DENONYM} ${this.replaceTarget.TARGET_LANG}. Maintain the exact same layout, style, colors, and design. Only change the text content.`;
+
+            // Generate translated image
+            const result = await generator.generate(translationPrompt, {
+                referenceImage: imagePath,
+                quality: quality,
+                numberOfImages: numberOfImages
+            });
+
+            if (result.images && result.images.length > 0) {
+                // Create target directory if it doesn't exist
+                if (!fs.existsSync(targetDir)) {
+                    fs.mkdirSync(targetDir, { recursive: true });
+                }
+
+                // Save translated image
+                const originalName = path.basename(targetPath, path.extname(targetPath));
+                await generator.save({
+                    directory: targetDir,
+                    filename: originalName
+                });
+
+                console.log(`✅ Translated image saved: ${targetPath}`);
+            } else {
+                console.error('No translated image was generated');
+            }
+        } catch (error) {
+            if (error.message.includes('API Key')) {
+                console.error('❌ GEMINI_API_KEY not found in .env file');
+            }
+            throw error;
+        }
     }
 }
 
