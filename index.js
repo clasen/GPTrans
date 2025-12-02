@@ -259,6 +259,19 @@ class GPTrans {
         return this;
     }
 
+    purge() {
+        // Iterate through dbTarget and remove keys that don't exist in dbFrom
+        for (const [context, pairs] of this.dbTarget.entries()) {
+            for (const key of Object.keys(pairs)) {
+                if (!this.dbFrom.get(context, key)) {
+                    this.dbTarget.del(context, key);
+                }
+            }
+        }
+
+        return this;
+    }
+
     async img(imagePath, options = {}) {
         const {
             quality = '1K',
