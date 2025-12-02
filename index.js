@@ -113,11 +113,11 @@ class GPTrans {
         const contextHash = this._hash(this.context);
         const translation = this.dbTarget.get(contextHash, key);
 
-        if (!translation) {
+        if (!this.freeze && !this.dbFrom.get(this.context, key)) {
+            this.dbFrom.set(this.context, key, text);
+        }
 
-            if (!this.freeze && !this.dbFrom.get(this.context, key)) {
-                this.dbFrom.set(this.context, key, text);
-            }
+        if (!translation) {
 
             // Skip translation if context is empty and languages are the same
             if (!this.context && this.replaceFrom.FROM_ISO === this.replaceTarget.TARGET_ISO) {
