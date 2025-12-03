@@ -23,7 +23,7 @@ async function main() {
         console.log('   Input: en/image.jpg');
         console.log('   Expected output: es/image.jpg (sibling folder)\n');
 
-        const imageInLangFolder = path.join(__dirname, 'camera_4126.jpg');
+        const imageInLangFolder = path.join(__dirname, 'en', 'camera_4126.jpg');
         if (fs.existsSync(imageInLangFolder)) {
             const result1 = await gptrans.img(imageInLangFolder);
             console.log('   Result:', result1);

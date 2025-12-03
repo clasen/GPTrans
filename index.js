@@ -309,10 +309,14 @@ class GPTrans {
         }
 
         // Generate translated image and wait for completion
-        await this._generateTranslatedImage(imagePath, targetPath, targetDir, prompt, quality, numberOfImages);
-
-        // Return path of translated image
-        return targetPath;
+        try {
+            await this._generateTranslatedImage(imagePath, targetPath, targetDir, prompt, quality, numberOfImages);
+            // Return path of translated image if successful
+            return targetPath;
+        } catch (error) {
+            // Return original path if generation fails
+            return imagePath;
+        }
     }
 
     _isLanguageFolder(folderName) {
@@ -323,43 +327,34 @@ class GPTrans {
     }
 
     async _generateTranslatedImage(imagePath, targetPath, targetDir, customPrompt, quality, numberOfImages) {
-        try {
-            // Initialize GeminiGenerator
-            const generator = new GeminiGenerator();
+        // Initialize GeminiGenerator
+        const generator = new GeminiGenerator();
 
-            // Generate translation prompt
-            const translationPrompt = customPrompt || 
-                `Translate all text in this image to ${this.replaceTarget.TARGET_DENONYM} ${this.replaceTarget.TARGET_LANG}. Maintain the exact same layout, style, colors, and design. Only change the text content.`;
+        // Generate translation prompt
+        const translationPrompt = customPrompt || 
+            `Translate all text in this image to ${this.replaceTarget.TARGET_DENONYM} ${this.replaceTarget.TARGET_LANG}. Maintain the exact same layout, style, colors, and design. Only change the text content.`;
 
-            // Generate translated image
-            const result = await generator.generate(translationPrompt, {
-                referenceImage: imagePath,
-                quality: quality,
-                numberOfImages: numberOfImages
+        // Generate translated image
+        const result = await generator.generate(translationPrompt, {
+            referenceImage: imagePath,
+            quality: quality,
+            numberOfImages: numberOfImages
+        });
+
+        if (result.images && result.images.length > 0) {
+            // Create target directory if it doesn't exist
+            if (!fs.existsSync(targetDir)) {
+                fs.mkdirSync(targetDir, { recursive: true });
+            }
+
+            // Save translated image
+            const originalName = path.basename(targetPath, path.extname(targetPath));
+            await generator.save({
+                directory: targetDir,
+                filename: originalName
             });
-
-            if (result.images && result.images.length > 0) {
-                // Create target directory if it doesn't exist
-                if (!fs.existsSync(targetDir)) {
-                    fs.mkdirSync(targetDir, { recursive: true });
-                }
-
-                // Save translated image
-                const originalName = path.basename(targetPath, path.extname(targetPath));
-                await generator.save({
-                    directory: targetDir,
-                    filename: originalName
-                });
-
-                console.log(`✅ Translated image saved: ${targetPath}`);
-            } else {
-                console.error('No translated image was generated');
-            }
-        } catch (error) {
-            if (error.message.includes('API Key')) {
-                console.error('❌ GEMINI_API_KEY not found in .env file');
-            }
-            throw error;
+        } else {
+            throw new Error('No translated image was generated');
         }
     }
 }
