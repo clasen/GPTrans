@@ -143,6 +143,10 @@ When using multiple models:
 
 Intelligent image translation using Google's Gemini AI.
 
+![Image Translation Example](demo/en2es.jpg)
+
+  Original English image (left) → Translated to Spanish (right)*
+
 ## ✨ Smart Path Detection
 
 The translation system automatically detects if your image is already in a language folder and adjusts the output path accordingly:
