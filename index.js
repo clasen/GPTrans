@@ -12,7 +12,7 @@ class GPTrans {
 
     static mmix(models = 'sonnet45') {
         const key = Array.isArray(models) ? models.join(',') : models;
-        
+
         if (!this.#mmixInstances.has(key)) {
             const mmix = new ModelMix({
                 config: {
@@ -28,7 +28,7 @@ class GPTrans {
             // Chain models dynamically
             let instance = mmix;
             const modelArray = Array.isArray(models) ? models : [models];
-            
+
             for (const model of modelArray) {
                 if (typeof instance[model] !== 'function') {
                     throw new Error(
@@ -283,16 +283,16 @@ class GPTrans {
         const parsedPath = path.parse(imagePath);
         const filename = parsedPath.base;
         const targetLang = this.replaceTarget.TARGET_ISO || 'en';
-        
+
         // Check if image is already in a language folder
         const dirName = path.basename(path.dirname(imagePath));
         const parentDir = path.dirname(path.dirname(imagePath));
-        
+
         // If the image is in a language folder (e.g., en/image.jpg)
         // create the target at the same level (e.g., es/image.jpg)
         // Otherwise, create it as a subfolder (e.g., ./image.jpg -> es/image.jpg)
         let targetDir, targetPath;
-        
+
         if (this._isLanguageFolder(dirName)) {
             // Image is in a language folder: create sibling folder
             targetDir = path.join(parentDir, targetLang);
@@ -331,7 +331,7 @@ class GPTrans {
         const generator = new GeminiGenerator();
 
         // Generate translation prompt
-        const translationPrompt = customPrompt || 
+        const translationPrompt = customPrompt ||
             `Translate all text in this image to ${this.replaceTarget.TARGET_DENONYM} ${this.replaceTarget.TARGET_LANG}. Maintain the exact same layout, style, colors, and design. Only change the text content.`;
 
         // Generate translated image
@@ -347,12 +347,10 @@ class GPTrans {
                 fs.mkdirSync(targetDir, { recursive: true });
             }
 
-            // Save translated image
-            const originalName = path.basename(targetPath, path.extname(targetPath));
-            await generator.save({
-                directory: targetDir,
-                filename: originalName
-            });
+            // Save translated image - preserve original file format
+            const filename = path.basename(targetPath, path.extname(targetPath));
+            const formatOptions = generator.getReferenceMetadata();
+            await generator.save({ directory: targetDir, filename, formatOptions });
         } else {
             throw new Error('No translated image was generated');
         }
