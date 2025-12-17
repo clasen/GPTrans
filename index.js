@@ -50,6 +50,9 @@ class GPTrans {
 
     constructor({ from = 'en-US', target = 'es', model = 'sonnet45', batchThreshold = 1500, debounceTimeout = 500, promptFile = null, context = '', freeze = false } = {}) {
 
+        target = this.normalizeBCP47(target);
+        from = this.normalizeBCP47(from);
+        
         try {
             dotenv.config();
         } catch (e) {
@@ -83,6 +86,14 @@ class GPTrans {
             }
         };
         this.divider = '------';
+    }
+
+    normalizeBCP47(iso) {
+        if (iso.includes('-')) {
+            return iso.split('-')[0].toLowerCase() + '-' + iso.split('-')[1].toUpperCase();
+        }
+
+        return iso.toLowerCase();
     }
 
     setContext(context = '') {
