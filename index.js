@@ -48,11 +48,11 @@ class GPTrans {
         return isLanguageAvailable(langCode);
     }
 
-    constructor({ from = 'en-US', target = 'es', model = 'sonnet45', batchThreshold = 1500, debounceTimeout = 500, promptFile = null, context = '', freeze = false } = {}) {
+    constructor({ from = 'en-US', target = 'es', model = 'sonnet45', batchThreshold = 1500, debounceTimeout = 500, promptFile = null, name = '', context = '', freeze = false } = {}) {
 
         target = this.normalizeBCP47(target);
         from = this.normalizeBCP47(from);
-        
+
         try {
             dotenv.config();
         } catch (e) {
@@ -60,8 +60,9 @@ class GPTrans {
         }
 
         const path = new URL('../../db', import.meta.url).pathname;
-        this.dbTarget = new DeepBase({ name: 'gptrans_' + target, path });
-        this.dbFrom = new DeepBase({ name: 'gptrans_from_' + from, path });
+        name = name ? '_' + name : '';
+        this.dbTarget = new DeepBase({ name: 'gptrans' + name + '_' + target, path });
+        this.dbFrom = new DeepBase({ name: 'gptrans' + name + '_from_' + from, path });
 
         try {
             this.replaceTarget = isoAssoc(target, 'TARGET_');
