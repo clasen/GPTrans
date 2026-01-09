@@ -9,6 +9,7 @@ import path from 'path';
 
 class GPTrans {
     static #mmixInstances = new Map();
+    static #translationLocks = new Map();
 
     static mmix(models = 'sonnet45') {
         const key = Array.isArray(models) ? models.join(',') : models;
@@ -42,6 +43,24 @@ class GPTrans {
             this.#mmixInstances.set(key, instance);
         }
         return this.#mmixInstances.get(key);
+    }
+
+    static async #acquireTranslationLock(modelKey) {
+        if (!this.#translationLocks.has(modelKey)) {
+            this.#translationLocks.set(modelKey, Promise.resolve());
+        }
+        
+        const previousLock = this.#translationLocks.get(modelKey);
+        let releaseLock;
+        
+        const currentLock = new Promise(resolve => {
+            releaseLock = resolve;
+        });
+        
+        this.#translationLocks.set(modelKey, previousLock.then(() => currentLock));
+        
+        await previousLock;
+        return releaseLock;
     }
 
     static isLanguageAvailable(langCode) {
@@ -100,7 +119,8 @@ class GPTrans {
     setContext(context = '') {
         if (this.context !== context && this.pendingTranslations.size > 0) {
             clearTimeout(this.debounceTimer);
-            this._processBatch(this.context);
+            const capturedContext = this.context;
+            this._processBatch(capturedContext);
         }
         this.context = context;
         return this;
@@ -150,10 +170,11 @@ class GPTrans {
                 clearTimeout(this.debounceTimer);
             }
 
-            // Set new timer
+            // Set new timer - capture context at scheduling time
+            const capturedContext = this.context;
             this.debounceTimer = setTimeout(() => {
                 if (this.pendingTranslations.size > 0) {
-                    this._processBatch(this.context);
+                    this._processBatch(capturedContext);
                 }
             }, this.debounceTimeout);
 
@@ -203,24 +224,31 @@ class GPTrans {
     }
 
     async _translate(text) {
+        // Acquire lock to ensure atomic model configuration and translation
+        const releaseLock = await GPTrans.#acquireTranslationLock(this.modelKey);
+        
+        try {
+            const model = GPTrans.mmix(this.modelKey);
 
-        const model = GPTrans.mmix(this.modelKey);
+            model.setSystem("You are an expert translator specialized in literary translation between FROM_LANG and TARGET_DENONYM TARGET_LANG.");
 
-        model.setSystem("You are an expert translator specialized in literary translation between FROM_LANG and TARGET_DENONYM TARGET_LANG.");
+            model.addTextFromFile(this.promptFile);
 
-        model.addTextFromFile(this.promptFile);
+            model.replace({ INPUT: text, CONTEXT: this.context });
+            model.replace(this.replaceTarget);
+            model.replace(this.replaceFrom);
 
-        model.replace({ INPUT: text, CONTEXT: this.context });
-        model.replace(this.replaceTarget);
-        model.replace(this.replaceFrom);
+            const response = await model.message();
 
-        const response = await model.message();
+            const codeBlockRegex = /```(?:\w*\n)?([\s\S]*?)```/;
+            const match = response.match(codeBlockRegex);
+            const translatedText = match ? match[1].trim() : response;
 
-        const codeBlockRegex = /```(?:\w*\n)?([\s\S]*?)```/;
-        const match = response.match(codeBlockRegex);
-        const translatedText = match ? match[1].trim() : response;
-
-        return translatedText;
+            return translatedText;
+        } finally {
+            // Always release the lock
+            releaseLock();
+        }
     }
 
     _textToKey(text, tokens = 5, maxlen = 6) {
