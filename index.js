@@ -127,6 +127,7 @@ class GPTrans {
 
         if (!this.freeze && !this.dbFrom.get(this.context, key)) {
             this.dbFrom.set(this.context, key, text);
+            this.dbFrom.set('_context', contextHash, this.context);
         }
 
         if (!translation) {
@@ -271,12 +272,15 @@ class GPTrans {
         return this;
     }
 
-    purge() {
+    async purge() {
         // Iterate through dbTarget and remove keys that don't exist in dbFrom
-        for (const [context, pairs] of this.dbTarget.entries()) {
+        for (const [contextHash, pairs] of this.dbTarget.entries()) {
             for (const key of Object.keys(pairs)) {
+                
+                const context = this.dbFrom.get('_context', contextHash);
                 if (!this.dbFrom.get(context, key)) {
-                    this.dbTarget.del(context, key);
+                    console.log(contextHash, key);
+                    await this.dbTarget.del(contextHash, key);
                 }
             }
         }
