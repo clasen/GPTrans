@@ -11,14 +11,14 @@ class GPTrans {
     static #mmixInstances = new Map();
     static #translationLocks = new Map();
 
-    static mmix(models = 'sonnet45') {
+    static mmix(models = 'sonnet45', { debug = false } = {}) {
         const key = Array.isArray(models) ? models.join(',') : models;
 
         if (!this.#mmixInstances.has(key)) {
             const mmix = new ModelMix({
                 config: {
                     max_history: 1,
-                    debug: false,
+                    debug,
                     bottleneck: {
                         minTime: 15000,
                         maxConcurrent: 1
@@ -49,16 +49,16 @@ class GPTrans {
         if (!this.#translationLocks.has(modelKey)) {
             this.#translationLocks.set(modelKey, Promise.resolve());
         }
-        
+
         const previousLock = this.#translationLocks.get(modelKey);
         let releaseLock;
-        
+
         const currentLock = new Promise(resolve => {
             releaseLock = resolve;
         });
-        
+
         this.#translationLocks.set(modelKey, previousLock.then(() => currentLock));
-        
+
         await previousLock;
         return releaseLock;
     }
@@ -67,7 +67,7 @@ class GPTrans {
         return isLanguageAvailable(langCode);
     }
 
-    constructor({ from = 'en-US', target = 'es', model = 'sonnet45', batchThreshold = 1500, debounceTimeout = 500, promptFile = null, name = '', context = '', freeze = false } = {}) {
+    constructor({ from = 'en-US', target = 'es', model = 'sonnet45', batchThreshold = 1500, debounceTimeout = 500, promptFile = null, name = '', context = '', freeze = false, debug = false } = {}) {
 
         target = this.normalizeBCP47(target);
         from = this.normalizeBCP47(from);
@@ -79,9 +79,11 @@ class GPTrans {
         }
 
         const path = new URL('../../db', import.meta.url).pathname;
-        name = name ? '_' + name : '';
-        this.dbTarget = new DeepBase({ name: 'gptrans' + name + '_' + target, path });
-        this.dbFrom = new DeepBase({ name: 'gptrans' + name + '_from_' + from, path });
+        const namePrefix = name ? '_' + name : '';
+        this.dbPath = path;
+        this.instanceName = name;
+        this.dbTarget = new DeepBase({ name: 'gptrans' + namePrefix + '_' + target, path });
+        this.dbFrom = new DeepBase({ name: 'gptrans' + namePrefix + '_from_' + from, path });
 
         try {
             this.replaceTarget = isoAssoc(target, 'TARGET_');
@@ -95,6 +97,8 @@ class GPTrans {
         this.pendingTranslations = new Map(); // [key, text]
         this.pendingCharCount = 0; // Add character count tracker
         this.debounceTimer = null;
+        this.isProcessingBatch = false; // Track if a batch is currently being processed
+        this.modelMixOptions = { debug };
         this.modelKey = model;
         this.promptFile = promptFile ?? new URL('./prompt/translate.md', import.meta.url).pathname;
         this.context = context;
@@ -196,13 +200,24 @@ class GPTrans {
 
         this.modelConfig.options.max_tokens = this.pendingCharCount + 1000;
         const minTime = Math.floor((60000 / (8000 / this.pendingCharCount)) * 1.4);
-        GPTrans.mmix(this.modelKey).limiter.updateSettings({ minTime });
+        GPTrans.mmix(this.modelKey, this.modelMixOptions).limiter.updateSettings({ minTime });
 
         this.pendingCharCount = 0;
 
+        // Load references for each text in the batch if preloadReferences is set
+        const batchReferences = {};
+        if (this.preloadReferences && this.preloadReferences.length > 0) {
+            batch.forEach(([key]) => {
+                const refs = this._loadReferenceTranslations(key, this.preloadReferences);
+                if (Object.keys(refs).length > 0) {
+                    batchReferences[key] = refs;
+                }
+            });
+        }
+
         const textsToTranslate = batch.map(([_, text]) => text).join(`\n${this.divider}\n`);
         try {
-            const translations = await this._translate(textsToTranslate);
+            const translations = await this._translate(textsToTranslate, batch, batchReferences, this.preloadBaseLanguage);
             const translatedTexts = translations.split(`\n${this.divider}\n`);
 
             const contextHash = this._hash(context);
@@ -223,20 +238,57 @@ class GPTrans {
         }
     }
 
-    async _translate(text) {
+    async _translate(text, batch = [], batchReferences = {}, baseLanguage = null) {
         // Acquire lock to ensure atomic model configuration and translation
         const releaseLock = await GPTrans.#acquireTranslationLock(this.modelKey);
-        
+
         try {
-            const model = GPTrans.mmix(this.modelKey);
+            const model = GPTrans.mmix(this.modelKey, this.modelMixOptions);
 
             model.setSystem("You are an expert translator specialized in literary translation between FROM_LANG and TARGET_DENONYM TARGET_LANG.");
 
             model.addTextFromFile(this.promptFile);
 
-            model.replace({ INPUT: text, CONTEXT: this.context });
+            // Format references if available
+            let referencesText = '';
+            if (Object.keys(batchReferences).length > 0 && batch.length > 0) {
+                const textsArray = text.split(`\n${this.divider}\n`);
+
+                referencesText = textsArray.map((txt, index) => {
+                    const key = batch[index] ? batch[index][0] : null;
+                    if (key && batchReferences[key]) {
+                        const refs = batchReferences[key];
+                        const refLines = Object.entries(refs).map(([lang, translation]) => {
+                            try {
+                                const langInfo = isoAssoc(lang);
+                                return `${langInfo.DENONYM} ${langInfo.LANG} (${lang}): ${translation}`;
+                            } catch (e) {
+                                return `${lang}: ${translation}`;
+                            }
+                        }).join(`\n${this.divider}\n`);
+                        return refLines;
+                    }
+                    return '';
+                }).filter(r => r).join(`\n\n`);
+            }
+
+            // Determine which FROM_ values to use
+            let fromReplace = this.replaceFrom;
+            if (baseLanguage) {
+                try {
+                    fromReplace = isoAssoc(baseLanguage, 'FROM_');
+                } catch (e) {
+                    console.warn(`Invalid baseLanguage: ${baseLanguage}, using default`);
+                }
+            }
+
+            model.replace({
+                INPUT: text,
+                CONTEXT: this.context,
+                REFERENCES: referencesText || 'None'
+            });
             model.replace(this.replaceTarget);
-            model.replace(this.replaceFrom);
+            model.replace(fromReplace);
 
             const response = await model.message();
 
@@ -269,28 +321,97 @@ class GPTrans {
         return stringHash(input).toString(36);
     }
 
-    async preload() {
+    _loadReferenceTranslations(key, referenceLangs = []) {
+        const references = {};
+        const contextHash = this._hash(this.context);
+
+        for (const lang of referenceLangs) {
+            const namePrefix = this.instanceName ? '_' + this.instanceName : '';
+            const dbRef = new DeepBase({
+                name: `gptrans${namePrefix}_${lang}`,
+                path: this.dbPath
+            });
+
+            const translation = dbRef.get(contextHash, key);
+            if (translation) {
+                references[lang] = translation;
+            }
+        }
+
+        return references;
+    }
+
+    async preload({ references = [], baseLanguage = null } = {}) {
 
         if (!this.context && this.replaceFrom.FROM_ISO === this.replaceTarget.TARGET_ISO) {
             return this;
         }
 
+        // Store preload options for use in translation
+        this.preloadReferences = references;
+        this.preloadBaseLanguage = baseLanguage;
+
+        // Track which keys need translation
+        const keysNeedingTranslation = [];
+        
         for (const [context, pairs] of this.dbFrom.entries()) {
+            // Skip the _context metadata
+            if (context === '_context') continue;
+            
             this.setContext(context);
+            const contextHash = this._hash(context);
+            
             for (const [key, text] of Object.entries(pairs)) {
+                // Check if translation already exists
+                if (!this.dbTarget.get(contextHash, key)) {
+                    keysNeedingTranslation.push({ context, contextHash, key });
+                }
                 this.get(key, text);
             }
         }
 
+        // If nothing needs translation, return immediately
+        if (keysNeedingTranslation.length === 0) {
+            this.preloadReferences = [];
+            this.preloadBaseLanguage = null;
+            return this;
+        }
+
         // Wait for any pending translations to complete
-        await new Promise(resolve => {
+        const maxWaitTime = 120000; // 120 seconds timeout
+        const startTime = Date.now();
+        
+        await new Promise((resolve, reject) => {
             const checkInterval = setInterval(() => {
-                if (this.dbFrom.keys().length === this.dbTarget.keys().length) {
+                // Check if there are still pending translations or batch being processed
+                const hasPending = this.pendingTranslations.size > 0 || this.isProcessingBatch;
+                
+                // Check if all needed translations are now complete
+                let allTranslated = true;
+                for (const { contextHash, key } of keysNeedingTranslation) {
+                    if (!this.dbTarget.get(contextHash, key)) {
+                        allTranslated = false;
+                        break;
+                    }
+                }
+                
+                if (allTranslated && !hasPending) {
                     clearInterval(checkInterval);
                     resolve();
                 }
+                
+                // Timeout check
+                if (Date.now() - startTime > maxWaitTime) {
+                    clearInterval(checkInterval);
+                    console.warn(`Preload timeout: ${keysNeedingTranslation.length} translations pending`);
+                    resolve(); // Resolve instead of reject to allow partial completion
+                }
             }, 100);
         });
+
+        // Clear preload options after completion
+        this.preloadReferences = [];
+        this.preloadBaseLanguage = null;
 
         return this;
     }
@@ -304,7 +425,7 @@ class GPTrans {
         // Iterate through dbTarget and remove keys that don't exist in dbFrom
         for (const [contextHash, pairs] of this.dbTarget.entries()) {
             for (const key of Object.keys(pairs)) {
-                
+
                 const context = this.dbFrom.get('_context', contextHash);
                 if (!this.dbFrom.get(context, key)) {
                     console.log(contextHash, key);

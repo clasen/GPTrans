@@ -6,6 +6,12 @@ Translation from FROM_ISO to TARGET_ISO (TARGET_DENONYM TARGET_LANG) with cultur
 INPUT
 ```
 
+## Reference Translations (for context)
+These are existing translations in other languages that may help you provide a more accurate translation. Use them as reference but do not simply copy them:
+```
+REFERENCES
+```
+
 # Return Format
    - Provide the final translation within a code block using ```.
    - Do not include alternative translations, only provide the best translation.
