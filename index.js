@@ -218,15 +218,45 @@ class GPTrans {
         const textsToTranslate = batch.map(([_, text]) => text).join(`\n${this.divider}\n`);
         try {
             const translations = await this._translate(textsToTranslate, batch, batchReferences, this.preloadBaseLanguage);
-            const translatedTexts = translations.split(`\n${this.divider}\n`);
+            
+            // Try different split strategies to be more robust
+            let translatedTexts = translations.split(`\n${this.divider}\n`);
+            
+            // If split doesn't match batch size, try alternative separators
+            if (translatedTexts.length !== batch.length) {
+                // Try without newlines around divider
+                translatedTexts = translations.split(this.divider);
+                
+                // If still doesn't match, try with just newline
+                if (translatedTexts.length !== batch.length) {
+                    translatedTexts = translations.split(/\n{2,}/); // Split by multiple newlines
+                }
+            }
 
             const contextHash = this._hash(context);
+            
+            // Validate we have the right number of translations
+            if (translatedTexts.length !== batch.length) {
+                console.error(`❌ Translation count mismatch:`);
+                console.error(`   Expected: ${batch.length} translations`);
+                console.error(`   Received: ${translatedTexts.length} translations`);
+                console.error(`   Batch keys: ${batch.map(([key]) => key).join(', ')}`);
+                console.error(`\n📝 Full response from model:\n${translations}\n`);
+                
+                // Try to save what we can
+                const minLength = Math.min(translatedTexts.length, batch.length);
+                for (let i = 0; i < minLength; i++) {
+                    if (translatedTexts[i] && translatedTexts[i].trim()) {
+                        this.dbTarget.set(contextHash, batch[i][0], translatedTexts[i].trim());
+                    }
+                }
+                return;
+            }
+
             batch.forEach(([key], index) => {
-
-                if (!translatedTexts[index]) {
-                    console.log(translations);
-                    console.error(`No translation found for ${key}`);
-
+                if (!translatedTexts[index] || !translatedTexts[index].trim()) {
+                    console.error(`❌ No translation found for ${key} at index ${index}`);
+                    console.error(`   Original text: ${batch[index][1]}`);
                     return;
                 }
 
@@ -234,7 +264,8 @@ class GPTrans {
             });
 
         } catch (e) {
-            console.error(e);
+            console.error('❌ Error in _processBatch:', e.message);
+            console.error(e.stack);
         }
     }
 
@@ -319,7 +350,14 @@ class GPTrans {
 
             model.addText(promptContent);
 
-            return model.block({ addSystemExtra: false });
+            const response = await model.message();
+
+            // Extract content from code block if present
+            const codeBlockRegex = /```(?:\w*\n)?([\s\S]*?)```/;
+            const match = response.match(codeBlockRegex);
+            const translatedText = match ? match[1].trim() : response.trim();
+
+            return translatedText;
 
         } finally {
             // Always release the lock
