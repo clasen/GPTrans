@@ -10,6 +10,8 @@ Whether you're building a multilingual website, a mobile app, or a localization 
 
 - **AI-Powered Translations:** Harness advanced models like OpenAI's GPT and Anthropic's Sonnet for high-quality translations
 - **Smart Batching & Debouncing:** Translations are processed in batches, not only for efficiency but also to provide better context. By sending multiple related texts together, the AI model can better understand the overall context and produce more accurate and consistent translations across related terms and phrases.
+- **Reference Translations:** Use existing translations in other languages as context to improve accuracy and consistency across your multilingual content
+- **Flexible Base Language:** Translate from an intermediate language instead of the original, useful for avoiding gender-specific terms or leveraging more neutral language versions
 - **Caching with JSON:** Quickly retrieves cached translations to boost performance
 - **Parameter Substitution:** Dynamically replace placeholders in your translations
 - **Smart Context Handling:** Add contextual information to improve translation accuracy. Perfect for gender-aware translations, domain-specific content, or any scenario where additional context helps produce better results. The context is automatically cleared after each translation to prevent unintended effects.
@@ -117,11 +119,84 @@ If you're looking to streamline your translation workflow and bring your applica
 
 ## 🔄 Preloading Translations
 
-You can preload translations for specific languages using the `preload` method. This is particularly useful when you want to initialize translations based on dynamically generated keys:
+The `preload()` method allows you to pre-translate all texts in your database. It now supports advanced options for improved translation accuracy through reference translations and alternate base languages.
+
+### Basic Usage
 
 ```javascript
-await gptrans.preload({ target:'ar' });
+// Simple preload - translates all pending texts
+await gptrans.preload();
 ```
+
+### Advanced Options
+
+#### Using Reference Translations
+
+Include translations from other languages as context to improve accuracy and consistency:
+
+```javascript
+// Use English and Portuguese translations as reference
+const gptrans = new GPTrans({ from: 'es', target: 'fr' });
+await gptrans.preload({ 
+  references: ['en', 'pt'] 
+});
+```
+
+The AI model will see existing translations in the reference languages, helping it produce more consistent and accurate translations.
+
+#### Using an Alternate Base Language
+
+Translate from an intermediate language instead of the original:
+
+```javascript
+// Original is Spanish, but translate FROM English TO Portuguese
+const gptrans = new GPTrans({ from: 'es', target: 'pt' });
+await gptrans.preload({ 
+  baseLanguage: 'en' 
+});
+```
+
+This is useful when:
+- The intermediate language has characteristics that better suit the target (e.g., English "he/she" can be omitted in some languages)
+- You want to avoid gender-specific terms present in the source language
+- The intermediate translation is cleaner or more universal
+
+#### Combined Usage
+
+You can use both options together:
+
+```javascript
+// Translate from English to German, showing Spanish and Portuguese as reference
+const gptrans = new GPTrans({ from: 'es', target: 'de' });
+await gptrans.preload({ 
+  baseLanguage: 'en',
+  references: ['es', 'pt'] 
+});
+```
+
+### Real-World Example
+
+**Problem:** Gender-specific translations
+
+```javascript
+// Spanish: "El estudiante es muy bueno" (masculine)
+// English: "The student is very good" (neutral)
+
+// Solution: Translate to Portuguese using English as base
+const ptTranslator = new GPTrans({ from: 'es', target: 'pt' });
+await ptTranslator.preload({ 
+  baseLanguage: 'en',     // Use neutral English version
+  references: ['es']       // Show original Spanish for context
+});
+```
+
+### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `references` | `string[]` | Array of language codes (e.g., `['en', 'pt']`) to use as translation references |
+| `baseLanguage` | `string` | Language code to use as the base for translation instead of the original |
+
 
 ### Model Fallback System
 

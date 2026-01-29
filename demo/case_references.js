@@ -20,7 +20,7 @@ async function testReferences() {
         target: 'en',
         model: 'sonnet45',
         name: 'ref_test',
-        debug: true
+        debug: 3
     });
     
     const ptTranslator = new GPTrans({ 
@@ -28,7 +28,7 @@ async function testReferences() {
         target: 'pt',
         model: 'sonnet45',
         name: 'ref_test',
-        debug: true
+        debug: 3
     });
     
     // Sample Spanish texts with gendered language
@@ -44,14 +44,16 @@ async function testReferences() {
         console.log(`   EN: ${enTranslator.t(text)}`);
     });
     
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    // Wait for EN translations to complete if needed
+    await enTranslator.preload();
     
     console.log('\n📝 Creating Portuguese translations from Spanish...');
     spanishTexts.forEach(text => {
         console.log(`   PT: ${ptTranslator.t(text)}`);
     });
     
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    // Wait for PT translations to complete if needed
+    await ptTranslator.preload();
     
     console.log('\n' + '='.repeat(70));
     console.log('\n📋 Test 2: Translation with English as reference\n');
@@ -62,7 +64,7 @@ async function testReferences() {
         target: 'fr',
         model: 'sonnet45',
         name: 'ref_test',
-        debug: true
+        debug: 3
     });
     
     console.log('🔄 Preloading French translations with English as reference...');
@@ -85,7 +87,7 @@ async function testReferences() {
         target: 'it',
         model: 'sonnet45',
         name: 'ref_test',
-        debug: true
+        debug: 3
     });
     
     console.log('🔄 Preloading Italian translations with English as base language...');
@@ -109,7 +111,7 @@ async function testReferences() {
         target: 'de',
         model: 'sonnet45',
         name: 'ref_test',
-        debug: true
+        debug: 3
     });
     
     console.log('🔄 Preloading German translations with multiple references...');

@@ -8,9 +8,8 @@ INPUT
 
 ## Reference Translations (for context)
 These are existing translations in other languages that may help you provide a more accurate translation. Use them as reference but do not simply copy them:
-```
+
 REFERENCES
-```
 
 # Return Format
    - Provide the final translation within a code block using ```.

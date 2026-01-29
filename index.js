@@ -247,29 +247,50 @@ class GPTrans {
 
             model.setSystem("You are an expert translator specialized in literary translation between FROM_LANG and TARGET_DENONYM TARGET_LANG.");
 
-            model.addTextFromFile(this.promptFile);
+            // Read and process prompt file
+            let promptContent = fs.readFileSync(this.promptFile, 'utf-8');
 
             // Format references if available
             let referencesText = '';
             if (Object.keys(batchReferences).length > 0 && batch.length > 0) {
-                const textsArray = text.split(`\n${this.divider}\n`);
-
-                referencesText = textsArray.map((txt, index) => {
-                    const key = batch[index] ? batch[index][0] : null;
-                    if (key && batchReferences[key]) {
-                        const refs = batchReferences[key];
-                        const refLines = Object.entries(refs).map(([lang, translation]) => {
-                            try {
-                                const langInfo = isoAssoc(lang);
-                                return `${langInfo.DENONYM} ${langInfo.LANG} (${lang}): ${translation}`;
-                            } catch (e) {
-                                return `${lang}: ${translation}`;
+                // Group all references by language first
+                const refsByLang = {};
+                
+                batch.forEach(([key], index) => {
+                    if (batchReferences[key]) {
+                        Object.entries(batchReferences[key]).forEach(([lang, translation]) => {
+                            if (!refsByLang[lang]) {
+                                refsByLang[lang] = [];
                             }
-                        }).join(`\n${this.divider}\n`);
-                        return refLines;
+                            refsByLang[lang].push(translation);
+                        });
                     }
-                    return '';
-                }).filter(r => r).join(`\n\n`);
+                });
+                
+                // Format: one language header, then all its translations with bullets
+                const refBlocks = Object.entries(refsByLang).map(([lang, translations]) => {
+                    try {
+                        const langInfo = isoAssoc(lang);
+                        const header = `### ${langInfo.DENONYM} ${langInfo.LANG} (${lang}):`;
+                        const content = translations.map(t => `- ${t}`).join('\n');
+                        return `${header}\n${content}`;
+                    } catch (e) {
+                        const header = `### ${lang}:`;
+                        const content = translations.map(t => `- ${t}`).join('\n');
+                        return `${header}\n${content}`;
+                    }
+                });
+                
+                referencesText = refBlocks.join(`\n\n`);
+            }
+
+            // Remove reference section if no references
+            if (!referencesText) {
+                // Remove the entire "Reference Translations" section
+                promptContent = promptContent.replace(
+                    /## Reference Translations \(for context\)[\s\S]*?(?=\n#|$)/,
+                    ''
+                );
             }
 
             // Determine which FROM_ values to use
@@ -282,21 +303,24 @@ class GPTrans {
                 }
             }
 
-            model.replace({
-                INPUT: text,
-                CONTEXT: this.context,
-                REFERENCES: referencesText || 'None'
+            // Apply replacements to prompt
+            promptContent = promptContent
+                .replace(/INPUT/g, text)
+                .replace(/CONTEXT/g, this.context)
+                .replace(/REFERENCES/g, referencesText);
+
+            // Apply language-specific replacements
+            Object.entries(this.replaceTarget).forEach(([key, value]) => {
+                promptContent = promptContent.replace(new RegExp(key, 'g'), value);
             });
-            model.replace(this.replaceTarget);
-            model.replace(fromReplace);
+            Object.entries(fromReplace).forEach(([key, value]) => {
+                promptContent = promptContent.replace(new RegExp(key, 'g'), value);
+            });
 
-            const response = await model.message();
+            model.addText(promptContent);
 
-            const codeBlockRegex = /```(?:\w*\n)?([\s\S]*?)```/;
-            const match = response.match(codeBlockRegex);
-            const translatedText = match ? match[1].trim() : response;
+            return model.block({ addSystemExtra: false });
 
-            return translatedText;
         } finally {
             // Always release the lock
             releaseLock();
@@ -347,8 +371,24 @@ class GPTrans {
             return this;
         }
 
+        // Filter out invalid references
+        const validReferences = references.filter(lang => {
+            const normalizedLang = this.normalizeBCP47(lang);
+            // Don't include target language as reference (we're translating TO it)
+            if (normalizedLang === this.replaceTarget.TARGET_ISO) {
+                console.warn(`Ignoring reference language '${lang}': cannot use target language as reference`);
+                return false;
+            }
+            // Don't include baseLanguage as reference (redundant)
+            if (baseLanguage && normalizedLang === this.normalizeBCP47(baseLanguage)) {
+                console.warn(`Ignoring reference language '${lang}': same as baseLanguage`);
+                return false;
+            }
+            return true;
+        });
+
         // Store preload options for use in translation
-        this.preloadReferences = references;
+        this.preloadReferences = validReferences;
         this.preloadBaseLanguage = baseLanguage;
 
         // Track which keys need translation
@@ -365,8 +405,9 @@ class GPTrans {
                 // Check if translation already exists
                 if (!this.dbTarget.get(contextHash, key)) {
                     keysNeedingTranslation.push({ context, contextHash, key });
+                    // Only call get() if translation doesn't exist
+                    this.get(key, text);
                 }
-                this.get(key, text);
             }
         }
 
@@ -378,10 +419,8 @@ class GPTrans {
         }
 
         // Wait for any pending translations to complete
-        const maxWaitTime = 120000; // 120 seconds timeout
-        const startTime = Date.now();
-        
-        await new Promise((resolve, reject) => {
+        // No global timeout - each translation request has its own timeout
+        await new Promise((resolve) => {
             const checkInterval = setInterval(() => {
                 // Check if there are still pending translations or batch being processed
                 const hasPending = this.pendingTranslations.size > 0 || this.isProcessingBatch;
@@ -398,13 +437,6 @@ class GPTrans {
                 if (allTranslated && !hasPending) {
                     clearInterval(checkInterval);
                     resolve();
-                }
-                
-                // Timeout check
-                if (Date.now() - startTime > maxWaitTime) {
-                    clearInterval(checkInterval);
-                    console.warn(`Preload timeout: ${keysNeedingTranslation.length} translations pending`);
-                    resolve(); // Resolve instead of reject to allow partial completion
                 }
             }, 100);
         });
