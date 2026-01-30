@@ -511,7 +511,8 @@ class GPTrans {
         const {
             quality = '1K',
             numberOfImages = 1,
-            prompt = null
+            prompt = null,
+            jpegQuality = 92  // Nueva opción para controlar la calidad JPEG (1-100)
         } = options;
 
         // Parse image filename and extension
@@ -545,7 +546,7 @@ class GPTrans {
 
         // Generate translated image and wait for completion
         try {
-            await this._generateTranslatedImage(imagePath, targetPath, targetDir, prompt, quality, numberOfImages);
+            await this._generateTranslatedImage(imagePath, targetPath, targetDir, prompt, quality, numberOfImages, jpegQuality);
             // Return path of translated image if successful
             return targetPath;
         } catch (error) {
@@ -561,7 +562,7 @@ class GPTrans {
         return languageCodePattern.test(folderName);
     }
 
-    async _generateTranslatedImage(imagePath, targetPath, targetDir, customPrompt, quality, numberOfImages) {
+    async _generateTranslatedImage(imagePath, targetPath, targetDir, customPrompt, quality, numberOfImages, jpegQuality) {
         // Initialize GeminiGenerator
         const generator = new GeminiGenerator();
 
@@ -585,6 +586,16 @@ class GPTrans {
             // Save translated image - preserve original file format
             const filename = path.basename(targetPath, path.extname(targetPath));
             const formatOptions = generator.getReferenceMetadata();
+            
+            // Apply default quality settings for JPEG images
+            if (formatOptions && (formatOptions.format === 'jpeg' || formatOptions.format === 'jpg')) {
+                // Apply custom quality if specified, otherwise use defaults
+                formatOptions.quality = jpegQuality;
+                formatOptions.mozjpeg = true;  // Better JPEG compression
+                formatOptions.chromaSubsampling = '4:4:4';  // Better color quality
+                formatOptions.optimiseCoding = true;  // Lossless size reduction
+            }
+            
             await generator.save({ directory: targetDir, filename, formatOptions });
         } else {
             throw new Error('No translated image was generated');
