@@ -186,13 +186,10 @@ export function isoAssoc(iso, prefix = '') {
         country = 'us';
     }
 
-    let denonym = country ? countryDenonym[country] : 'Neutral';
+    let denonym = country ? countryDenonym[country] : 'Standard';
     
     if (lang === 'zh' && !country) {
         denonym = 'Simplified';
-    }
-    else if (lang === 'ar' && !country) {
-        denonym = 'Standard';
     }
 
     return {
