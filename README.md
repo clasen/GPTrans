@@ -21,7 +21,10 @@ Whether you're building a multilingual website, a mobile app, or a localization 
 ```bash
 npm install gptrans
 ```
-
+> **AI Skill**: You can also add GPTrans as a skill for AI agentic development:
+> ```bash
+> npx skills add https://github.com/clasen/GPTrans --skill gptrans
+> ```
 ### 🌐 Environment Setup
 
 GPTrans uses dotenv for environment configuration. Create a `.env` file in your project root and add your API keys:
@@ -213,6 +216,26 @@ When using multiple models:
 - The first model in the array is used as the primary translation service
 - If the primary model fails (due to API errors, rate limits, etc.), GPTrans automatically falls back to the next model
 - This ensures higher availability and resilience of your translation service
+
+## ✏️ Refining Translations
+
+The `refine()` method lets you improve existing translations by running them through the AI again with a specific instruction. It processes translations in batches (same as the translation flow) and only updates entries that genuinely benefit from the refinement.
+
+```javascript
+const gptrans = new GPTrans({ from: 'en', target: 'es-AR' });
+
+// After translations already exist...
+// Refine with a single instruction
+await gptrans.refine('Use a more natural and colloquial tone');
+
+// Or pass multiple instructions at once (single API pass, saves tokens)
+await gptrans.refine([
+  'Shorten texts where possible without losing meaning',
+  'Use a more colloquial tone'
+]);
+```
+
+> **Note:** The refine method uses the **target translation** as input (not the original source text). If the AI determines a translation is already good, it keeps it unchanged. Passing an array of instructions is preferred over multiple `refine()` calls since it processes everything in a single API pass.
 
 # 🖼️ Image Translation
 

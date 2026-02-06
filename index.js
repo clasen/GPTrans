@@ -11,11 +11,11 @@ class GPTrans {
     static #mmixInstances = new Map();
     static #translationLocks = new Map();
 
-    static mmix(models = 'sonnet45', { debug = false } = {}) {
+    static mmix(models = 'sonnet45', { debug = 0 } = {}) {
         const key = Array.isArray(models) ? models.join(',') : models;
 
         if (!this.#mmixInstances.has(key)) {
-            const mmix = new ModelMix({
+            let instance = ModelMix.new({
                 config: {
                     max_history: 1,
                     debug,
@@ -25,9 +25,6 @@ class GPTrans {
                     }
                 }
             });
-
-            // Chain models dynamically
-            let instance = mmix;
             const modelArray = Array.isArray(models) ? models : [models];
 
             for (const model of modelArray) {
@@ -276,18 +273,14 @@ class GPTrans {
         try {
             const model = GPTrans.mmix(this.modelKey, this.modelMixOptions);
 
-            model.setSystem("You are an expert translator specialized in literary translation between FROM_LANG and TARGET_DENONYM TARGET_LANG.");
+            model.setSystem("You are an expert translator specialized in literary translation between {FROM_LANG} and {TARGET_DENONYM} {TARGET_LANG}.");
 
-            // Read and process prompt file
-            let promptContent = fs.readFileSync(this.promptFile, 'utf-8');
-
-            // Format references if available
+            // Build references section (includes header when references exist, empty otherwise)
             let referencesText = '';
             if (Object.keys(batchReferences).length > 0 && batch.length > 0) {
-                // Group all references by language first
                 const refsByLang = {};
-                
-                batch.forEach(([key], index) => {
+
+                batch.forEach(([key]) => {
                     if (batchReferences[key]) {
                         Object.entries(batchReferences[key]).forEach(([lang, translation]) => {
                             if (!refsByLang[lang]) {
@@ -297,8 +290,7 @@ class GPTrans {
                         });
                     }
                 });
-                
-                // Format: one language header, then all its translations with bullets
+
                 const refBlocks = Object.entries(refsByLang).map(([lang, translations]) => {
                     try {
                         const langInfo = isoAssoc(lang);
@@ -311,17 +303,8 @@ class GPTrans {
                         return `${header}\n${content}`;
                     }
                 });
-                
-                referencesText = refBlocks.join(`\n\n`);
-            }
 
-            // Remove reference section if no references
-            if (!referencesText) {
-                // Remove the entire "Reference Translations" section
-                promptContent = promptContent.replace(
-                    /## Reference Translations \(for context\)[\s\S]*?(?=\n#|$)/,
-                    ''
-                );
+                referencesText = `## Reference Translations (for context)\nThese are existing translations in other languages that may help you provide a more accurate translation. Use them as reference but do not simply copy them:\n\n${refBlocks.join('\n\n')}`;
             }
 
             // Determine which FROM_ values to use
@@ -334,30 +317,23 @@ class GPTrans {
                 }
             }
 
-            // Apply replacements to prompt
-            promptContent = promptContent
-                .replace(/INPUT/g, text)
-                .replace(/CONTEXT/g, this.context)
-                .replace(/REFERENCES/g, referencesText);
-
-            // Apply language-specific replacements
-            Object.entries(this.replaceTarget).forEach(([key, value]) => {
-                promptContent = promptContent.replace(new RegExp(key, 'g'), value);
+            // Use ModelMix templates: addTextFromFile + replace + block
+            model.addTextFromFile(this.promptFile);
+            model.replace({
+                '{INPUT}': text,
+                '{CONTEXT}': this.context,
+                '{REFERENCES}': referencesText,
+                '{TARGET_ISO}': this.replaceTarget.TARGET_ISO,
+                '{TARGET_LANG}': this.replaceTarget.TARGET_LANG,
+                '{TARGET_COUNTRY}': this.replaceTarget.TARGET_COUNTRY,
+                '{TARGET_DENONYM}': this.replaceTarget.TARGET_DENONYM,
+                '{FROM_ISO}': fromReplace.FROM_ISO,
+                '{FROM_LANG}': fromReplace.FROM_LANG,
+                '{FROM_COUNTRY}': fromReplace.FROM_COUNTRY,
+                '{FROM_DENONYM}': fromReplace.FROM_DENONYM,
             });
-            Object.entries(fromReplace).forEach(([key, value]) => {
-                promptContent = promptContent.replace(new RegExp(key, 'g'), value);
-            });
 
-            model.addText(promptContent);
-
-            const response = await model.message();
-
-            // Extract content from code block if present
-            const codeBlockRegex = /```(?:\w*\n)?([\s\S]*?)```/;
-            const match = response.match(codeBlockRegex);
-            const translatedText = match ? match[1].trim() : response.trim();
-
-            return translatedText;
+            return model.block();
 
         } finally {
             // Always release the lock
@@ -505,6 +481,140 @@ class GPTrans {
         }
 
         return this;
+    }
+
+    async refine(instruction, { promptFile = null } = {}) {
+        // Accept string or array of instructions
+        const instructions = Array.isArray(instruction) ? instruction : [instruction];
+        const merged = instructions.filter(i => i && i.trim()).join('\n- ');
+
+        if (!merged) {
+            throw new Error('Refinement instruction is required');
+        }
+
+        const finalInstruction = instructions.length > 1 ? `- ${merged}` : merged;
+        const refinePromptFile = promptFile ?? new URL('./prompt/refine.md', import.meta.url).pathname;
+
+        // Collect all existing translations grouped by contextHash
+        const allBatches = [];
+        let currentBatch = [];
+        let currentCharCount = 0;
+
+        for (const [contextHash, pairs] of this.dbTarget.entries()) {
+            for (const [key, translation] of Object.entries(pairs)) {
+                const entryCharCount = translation.length;
+
+                // If adding this entry exceeds threshold, flush current batch
+                if (currentBatch.length > 0 && currentCharCount + entryCharCount >= this.batchThreshold) {
+                    allBatches.push({ entries: currentBatch, contextHash });
+                    currentBatch = [];
+                    currentCharCount = 0;
+                }
+
+                currentBatch.push({ key, translation, contextHash });
+                currentCharCount += entryCharCount;
+            }
+        }
+
+        // Push remaining entries
+        if (currentBatch.length > 0) {
+            allBatches.push({ entries: currentBatch, contextHash: currentBatch[0].contextHash });
+        }
+
+        if (allBatches.length === 0) {
+            return this;
+        }
+
+        // Process each batch sequentially (respecting rate limits via locks)
+        for (const batch of allBatches) {
+            await this._processRefineBatch(batch.entries, finalInstruction, refinePromptFile);
+        }
+
+        return this;
+    }
+
+    async _processRefineBatch(entries, instruction, refinePromptFile) {
+        const charCount = entries.reduce((sum, e) => sum + e.translation.length, 0);
+        this.modelConfig.options.max_tokens = charCount + 1000;
+        const minTime = Math.floor((60000 / (8000 / charCount)) * 1.4);
+        GPTrans.mmix(this.modelKey, this.modelMixOptions).limiter.updateSettings({ minTime });
+
+        const textsToRefine = entries.map(e => e.translation).join(`\n${this.divider}\n`);
+
+        try {
+            const refined = await this._refineTranslate(textsToRefine, instruction, refinePromptFile);
+
+            // Split with same strategy as _processBatch
+            let refinedTexts = refined.split(`\n${this.divider}\n`);
+
+            if (refinedTexts.length !== entries.length) {
+                refinedTexts = refined.split(this.divider);
+
+                if (refinedTexts.length !== entries.length) {
+                    refinedTexts = refined.split(/\n{2,}/);
+                }
+            }
+
+            if (refinedTexts.length !== entries.length) {
+                console.error(`❌ Refine count mismatch:`);
+                console.error(`   Expected: ${entries.length} translations`);
+                console.error(`   Received: ${refinedTexts.length} translations`);
+                console.error(`\n📝 Full response from model:\n${refined}\n`);
+
+                // Save what we can
+                const minLength = Math.min(refinedTexts.length, entries.length);
+                for (let i = 0; i < minLength; i++) {
+                    if (refinedTexts[i] && refinedTexts[i].trim()) {
+                        this.dbTarget.set(entries[i].contextHash, entries[i].key, refinedTexts[i].trim());
+                    }
+                }
+                return;
+            }
+
+            entries.forEach((entry, index) => {
+                const refinedText = refinedTexts[index]?.trim();
+                if (!refinedText) {
+                    console.error(`❌ No refined text for ${entry.key} at index ${index}`);
+                    return;
+                }
+                this.dbTarget.set(entry.contextHash, entry.key, refinedText);
+            });
+
+        } catch (e) {
+            console.error('❌ Error in _processRefineBatch:', e.message);
+            console.error(e.stack);
+        }
+    }
+
+    async _refineTranslate(text, instruction, refinePromptFile) {
+        const releaseLock = await GPTrans.#acquireTranslationLock(this.modelKey);
+
+        try {
+            const model = GPTrans.mmix(this.modelKey, this.modelMixOptions);
+
+            model.setSystem("You are an expert translator and editor specialized in refining {TARGET_DENONYM} {TARGET_LANG} translations.");
+
+            // Use ModelMix templates: addTextFromFile + replace + block
+            model.addTextFromFile(refinePromptFile);
+            model.replace({
+                '{INPUT}': text,
+                '{INSTRUCTION}': instruction,
+                '{CONTEXT}': this.context,
+                '{TARGET_ISO}': this.replaceTarget.TARGET_ISO,
+                '{TARGET_LANG}': this.replaceTarget.TARGET_LANG,
+                '{TARGET_COUNTRY}': this.replaceTarget.TARGET_COUNTRY,
+                '{TARGET_DENONYM}': this.replaceTarget.TARGET_DENONYM,
+                '{FROM_ISO}': this.replaceFrom.FROM_ISO,
+                '{FROM_LANG}': this.replaceFrom.FROM_LANG,
+                '{FROM_COUNTRY}': this.replaceFrom.FROM_COUNTRY,
+                '{FROM_DENONYM}': this.replaceFrom.FROM_DENONYM,
+            });
+
+            return await model.block();
+
+        } finally {
+            releaseLock();
+        }
     }
 
     async img(imagePath, options = {}) {

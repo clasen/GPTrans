@@ -1,7 +1,7 @@
 {
   "name": "gptrans",
   "type": "module",
-  "version": "1.9.8",
+  "version": "2.0.0",
   "description": "🚆 GPTrans - The smarter AI-powered way to translate.",
   "keywords": [
     "translate",
@@ -15,6 +15,9 @@
     "translation",
     "translator",
     "magic",
+    "agentic",
+    "skill",
+    "image",
     "clasen"
   ],
   "repository": {
@@ -37,7 +40,7 @@
     "dotenv": "^16.4.7",
     "form-data": "^4.0.4",
     "genmix": "^1.0.4",
-    "modelmix": "^4.2.8",
+    "modelmix": "^4.3.6",
     "string-hash": "^1.1.3"
   }
 }
