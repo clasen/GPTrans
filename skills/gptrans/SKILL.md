@@ -110,6 +110,7 @@ console.log(gptrans.setContext().t('Welcome back'));
 | `freeze` | `boolean` | `false` | Prevent new translations from being queued |
 | `name` | `string` | `''` | Instance name (isolates cache files) |
 | `context` | `string` | `''` | Default context for translations |
+| `instruction` | `string` | `''` | Additional instruction for the translator (tone, style). Does not affect cache key |
 | `promptFile` | `string` | `null` | Custom prompt file path (overrides built-in) |
 | `debug` | `boolean` | `false` | Enable debug output |
 
@@ -184,6 +185,17 @@ console.log(gptrans.setContext('The user is female').t('You are welcome'));
 
 // Reset context
 console.log(gptrans.setContext().t('Thank you'));
+```
+
+### Set instruction for translation style
+
+```javascript
+const gptrans = new GPTrans({
+  from: 'en', target: 'es-AR',
+  instruction: 'Use a formal and professional tone'
+});
+
+console.log(gptrans.t('Welcome to our platform'));
 ```
 
 ### Refine existing translations
@@ -276,6 +288,7 @@ if (GPTrans.isLanguageAvailable('pt-BR')) {
 - The `t()` method is synchronous and non-blocking. It returns the original text on first call and the cached translation on subsequent calls. Do NOT `await` it.
 - To ensure translations are complete before using them, call `await gptrans.preload()` after registering texts with `t()`.
 - Use `setContext()` for gender-aware or domain-specific translations. Context is captured per-batch and auto-resets when changed.
+- Use the `instruction` constructor option for style/tone guidance (e.g., "Use a more natural tone"). Unlike `context`, `instruction` does NOT affect the cache key — different instructions for the same text overwrite the same translation entry.
 - Prefer passing an array of instructions to `refine()` over multiple calls — it processes everything in a single API pass.
 - Use model arrays (`model: ['sonnet45', 'gpt41']`) for production resilience with automatic fallback.
 - Translation caches live in `db/gptrans_<locale>.json`. These files can be manually edited to override specific translations.

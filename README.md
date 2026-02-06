@@ -15,6 +15,7 @@ Whether you're building a multilingual website, a mobile app, or a localization 
 - **Caching with JSON:** Quickly retrieves cached translations to boost performance
 - **Parameter Substitution:** Dynamically replace placeholders in your translations
 - **Smart Context Handling:** Add contextual information to improve translation accuracy. Perfect for gender-aware translations, domain-specific content, or any scenario where additional context helps produce better results. The context is automatically cleared after each translation to prevent unintended effects.
+- **Translation Instructions:** Pass additional instructions (e.g., "Use natural tone") to guide the AI translator's style.
 
 ## 📦 Installation
 
@@ -76,6 +77,7 @@ When creating a new instance of GPTrans, you can customize:
 | `model` | Translation model key or array of models for fallback | `sonnet45` `gpt41` |
 | `batchThreshold` | Maximum number of characters to accumulate before triggering batch processing | `1500` |
 | `debounceTimeout` | Time in milliseconds to wait before processing translations | `500` |
+| `instruction` | Additional instruction for the translator (e.g., tone, style). Does not affect the cache key | `''` |
 | `freeze` | Freeze mode to prevent translations from being queued | `false` |
 
 ### BCP 47 Language Tags
@@ -119,6 +121,31 @@ GPTrans stands out by combining advanced AI capabilities with efficient batching
 - **Zero Maintenance:** Set it up once and forget about it - automatic updates and self-healing capabilities keep everything running smoothly
 
 If you're looking to streamline your translation workflow and bring your applications to a global audience effortlessly, GPTrans is the perfect choice!
+
+## 📝 Translation Instructions
+
+The `instruction` option lets you guide the AI translator's style, tone, or behavior without creating a separate cache entry. Unlike `context` (which produces separate translations for each unique context), `instruction` does not affect the cache key — so the same text with the same context always maps to the same cache entry regardless of the instruction used.
+
+### Usage
+
+```javascript
+const gptrans = new GPTrans({
+  from: 'en',
+  target: 'es-AR',
+  instruction: 'Use natural and colloquial tone'
+});
+
+console.log(gptrans.t('Welcome to our platform'));
+console.log(gptrans.t('Please verify your identity'));
+```
+
+### Instruction vs Context
+
+| | `context` | `instruction` |
+|---|---|---|
+| **Purpose** | Semantic information (gender, domain) | Style guidance (tone, formality) |
+| **Affects cache key** | Yes — different contexts create separate translations | No — same key regardless of instruction |
+| **Example** | `'Use natural tone'` |
 
 ## 🔄 Preloading Translations
 

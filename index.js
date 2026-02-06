@@ -64,7 +64,7 @@ class GPTrans {
         return isLanguageAvailable(langCode);
     }
 
-    constructor({ from = 'en-US', target = 'es', model = 'sonnet45', batchThreshold = 1500, debounceTimeout = 500, promptFile = null, name = '', context = '', freeze = false, debug = false } = {}) {
+    constructor({ from = 'en-US', target = 'es', model = 'sonnet45', batchThreshold = 1500, debounceTimeout = 500, promptFile = null, name = '', context = '', instruction = '', freeze = false, debug = false } = {}) {
 
         target = this.normalizeBCP47(target);
         from = this.normalizeBCP47(from);
@@ -99,6 +99,7 @@ class GPTrans {
         this.modelKey = model;
         this.promptFile = promptFile ?? new URL('./prompt/translate.md', import.meta.url).pathname;
         this.context = context;
+        this.instruction = instruction;
         this.freeze = freeze;
         this.modelConfig = {
             options: {
@@ -322,6 +323,7 @@ class GPTrans {
             model.replace({
                 '{INPUT}': text,
                 '{CONTEXT}': this.context,
+                '{INSTRUCTION}': this.instruction,
                 '{REFERENCES}': referencesText,
                 '{TARGET_ISO}': this.replaceTarget.TARGET_ISO,
                 '{TARGET_LANG}': this.replaceTarget.TARGET_LANG,

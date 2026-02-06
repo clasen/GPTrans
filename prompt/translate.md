@@ -1,5 +1,6 @@
 # Goal
 Translation from {FROM_ISO} to {TARGET_ISO} ({TARGET_DENONYM} {TARGET_LANG}) with cultural adaptations.
+{INSTRUCTION}
 
 ## Text to translate
 ```
