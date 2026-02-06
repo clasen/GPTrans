@@ -22,10 +22,12 @@ Whether you're building a multilingual website, a mobile app, or a localization 
 ```bash
 npm install gptrans
 ```
+
 > **AI Skill**: You can also add GPTrans as a skill for AI agentic development:
 > ```bash
 > npx skills add https://github.com/clasen/GPTrans --skill gptrans
 > ```
+
 ### 🌐 Environment Setup
 
 GPTrans uses dotenv for environment configuration. Create a `.env` file in your project root and add your API keys:
