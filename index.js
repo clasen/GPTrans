@@ -215,15 +215,15 @@ class GPTrans {
         const textsToTranslate = batch.map(([_, text]) => text).join(`\n${this.divider}\n`);
         try {
             const translations = await this._translate(textsToTranslate, batch, batchReferences, this.preloadBaseLanguage);
-            
+
             // Try different split strategies to be more robust
             let translatedTexts = translations.split(`\n${this.divider}\n`);
-            
+
             // If split doesn't match batch size, try alternative separators
             if (translatedTexts.length !== batch.length) {
                 // Try without newlines around divider
                 translatedTexts = translations.split(this.divider);
-                
+
                 // If still doesn't match, try with just newline
                 if (translatedTexts.length !== batch.length) {
                     translatedTexts = translations.split(/\n{2,}/); // Split by multiple newlines
@@ -231,7 +231,7 @@ class GPTrans {
             }
 
             const contextHash = this._hash(context);
-            
+
             // Validate we have the right number of translations
             if (translatedTexts.length !== batch.length) {
                 console.error(`❌ Translation count mismatch:`);
@@ -239,7 +239,7 @@ class GPTrans {
                 console.error(`   Received: ${translatedTexts.length} translations`);
                 console.error(`   Batch keys: ${batch.map(([key]) => key).join(', ')}`);
                 console.error(`\n📝 Full response from model:\n${translations}\n`);
-                
+
                 // Try to save what we can
                 const minLength = Math.min(translatedTexts.length, batch.length);
                 for (let i = 0; i < minLength; i++) {
@@ -333,7 +333,7 @@ class GPTrans {
                 '{FROM_DENONYM}': fromReplace.FROM_DENONYM,
             });
 
-            return model.block();
+            return await model.block({ addSystemExtra: false });
 
         } finally {
             // Always release the lock
@@ -407,14 +407,14 @@ class GPTrans {
 
         // Track which keys need translation
         const keysNeedingTranslation = [];
-        
+
         for (const [context, pairs] of this.dbFrom.entries()) {
             // Skip the _context metadata
             if (context === '_context') continue;
-            
+
             this.setContext(context);
             const contextHash = this._hash(context);
-            
+
             for (const [key, text] of Object.entries(pairs)) {
                 // Check if translation already exists
                 if (!this.dbTarget.get(contextHash, key)) {
@@ -438,7 +438,7 @@ class GPTrans {
             const checkInterval = setInterval(() => {
                 // Check if there are still pending translations or batch being processed
                 const hasPending = this.pendingTranslations.size > 0 || this.isProcessingBatch;
-                
+
                 // Check if all needed translations are now complete
                 let allTranslated = true;
                 for (const { contextHash, key } of keysNeedingTranslation) {
@@ -447,7 +447,7 @@ class GPTrans {
                         break;
                     }
                 }
-                
+
                 if (allTranslated && !hasPending) {
                     clearInterval(checkInterval);
                     resolve();
@@ -610,7 +610,7 @@ class GPTrans {
                 '{FROM_DENONYM}': this.replaceFrom.FROM_DENONYM,
             });
 
-            return await model.block();
+            return await model.block({ addSystemExtra: false });
 
         } finally {
             releaseLock();
@@ -696,7 +696,7 @@ class GPTrans {
             // Save translated image - preserve original file format
             const filename = path.basename(targetPath, path.extname(targetPath));
             const formatOptions = generator.getReferenceMetadata();
-            
+
             // Apply default quality settings for JPEG images
             if (formatOptions && (formatOptions.format === 'jpeg' || formatOptions.format === 'jpg')) {
                 // Apply custom quality if specified, otherwise use defaults
@@ -705,7 +705,7 @@ class GPTrans {
                 formatOptions.chromaSubsampling = '4:4:4';  // Better color quality
                 formatOptions.optimiseCoding = true;  // Lossless size reduction
             }
-            
+
             await generator.save({ directory: targetDir, filename, formatOptions });
         } else {
             throw new Error('No translated image was generated');
