@@ -131,17 +131,45 @@ class GPTrans {
     t(text, params = {}) {
         const key = this._textToKey(text);
         const translation = this.get(key, text) || text;
+        return this._applyParams(translation, params);
+    }
 
-        return Object.entries(params).reduce(
-            (text, [key, value]) => text.replace(`{${key}}`, value),
-            translation
-        );
+    async tAsync(text, params = {}) {
+        const key = this._textToKey(text);
+        const { contextHash, translation, needsTranslation } = this._resolveTranslationState(key, text);
+
+        if (!needsTranslation) {
+            return this._applyParams(translation || text, params);
+        }
+
+        // If this key was enqueued via t(), avoid duplicate work in a later batch.
+        this._dequeuePendingTranslation(key);
+
+        const translatedText = await this._translate(text, [[key, text]], {}, this.preloadBaseLanguage);
+        const immediateTranslation = translatedText.trim();
+        this.dbTarget.set(contextHash, key, immediateTranslation);
+
+        return this._applyParams(immediateTranslation, params);
     }
 
     get(key, text) {
+        const { translation, needsTranslation } = this._resolveTranslationState(key, text);
+        if (needsTranslation) {
+            this._enqueuePendingTranslation(key, text);
+        }
+        return translation;
+    }
 
+    _applyParams(text, params = {}) {
+        return Object.entries(params).reduce(
+            (translated, [paramKey, value]) => translated.replace(`{${paramKey}}`, value),
+            text
+        );
+    }
+
+    _resolveTranslationState(key, text) {
         if (!text || !text.trim()) {
-            return text;
+            return { contextHash: this._hash(this.context), translation: text, needsTranslation: false };
         }
 
         const contextHash = this._hash(this.context);
@@ -152,41 +180,56 @@ class GPTrans {
             this.dbFrom.set('_context', contextHash, this.context);
         }
 
-        if (!translation) {
-
-            // Skip translation if context is empty and languages are the same
-            if (!this.context && this.replaceFrom.FROM_ISO === this.replaceTarget.TARGET_ISO) {
-                return text;
-            }
-
-            if (this.freeze) {
-                console.log(`Freeze mode: [${key}] ${text}`);
-                return text;
-            }
-
-            this.pendingTranslations.set(key, text);
-            this.pendingCharCount += text.length; // Update character count
-
-            // Clear existing timer
-            if (this.debounceTimer) {
-                clearTimeout(this.debounceTimer);
-            }
-
-            // Set new timer - capture context at scheduling time
-            const capturedContext = this.context;
-            this.debounceTimer = setTimeout(() => {
-                if (this.pendingTranslations.size > 0) {
-                    this._processBatch(capturedContext);
-                }
-            }, this.debounceTimeout);
-
-            // Process if we hit the character count threshold
-            if (this.pendingCharCount >= this.batchThreshold) {
-                clearTimeout(this.debounceTimer);
-                this._processBatch(this.context);
-            }
+        if (translation) {
+            return { contextHash, translation, needsTranslation: false };
         }
-        return translation;
+
+        if (!this.context && this.replaceFrom.FROM_ISO === this.replaceTarget.TARGET_ISO) {
+            return { contextHash, translation: text, needsTranslation: false };
+        }
+
+        if (this.freeze) {
+            console.log(`Freeze mode: [${key}] ${text}`);
+            return { contextHash, translation: text, needsTranslation: false };
+        }
+
+        return { contextHash, translation: null, needsTranslation: true };
+    }
+
+    _enqueuePendingTranslation(key, text) {
+        const existingText = this.pendingTranslations.get(key);
+        if (existingText) {
+            this.pendingCharCount -= existingText.length;
+        }
+
+        this.pendingTranslations.set(key, text);
+        this.pendingCharCount += text.length;
+
+        if (this.debounceTimer) {
+            clearTimeout(this.debounceTimer);
+        }
+
+        const capturedContext = this.context;
+        this.debounceTimer = setTimeout(() => {
+            if (this.pendingTranslations.size > 0) {
+                this._processBatch(capturedContext);
+            }
+        }, this.debounceTimeout);
+
+        if (this.pendingCharCount >= this.batchThreshold) {
+            clearTimeout(this.debounceTimer);
+            this._processBatch(this.context);
+        }
+    }
+
+    _dequeuePendingTranslation(key) {
+        const queuedText = this.pendingTranslations.get(key);
+        if (!queuedText) {
+            return;
+        }
+
+        this.pendingTranslations.delete(key);
+        this.pendingCharCount = Math.max(0, this.pendingCharCount - queuedText.length);
     }
 
     async _processBatch(context) {
