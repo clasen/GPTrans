@@ -99,3 +99,45 @@ test('tAsync removes queued batch item to avoid duplicate work', async () => {
         clearTimeout(gp.debounceTimer);
     }
 });
+
+test('preload translates missing keys from dbFrom into dbTarget', async () => {
+    const gp = createTestInstance();
+    gp.debounceTimeout = 1;
+    let translateCalls = 0;
+
+    const context = 'checkout';
+    const sourceText = 'Buy now';
+    const key = gp._textToKey(sourceText);
+    const contextHash = gp._hash(context);
+
+    gp.dbFrom.set(context, key, sourceText);
+    gp.dbFrom.set('_context', contextHash, context);
+
+    gp._translate = async (text) => {
+        translateCalls += 1;
+        assert.equal(text, sourceText);
+        return 'Comprar ahora';
+    };
+
+    const originalMmix = GPTrans.mmix;
+    GPTrans.mmix = () => ({
+        limiter: {
+            updateSettings() {
+            }
+        }
+    });
+
+    try {
+        await gp.preload();
+
+        assert.equal(translateCalls, 1);
+        assert.equal(gp.dbTarget.get(contextHash, key), 'Comprar ahora');
+        assert.deepEqual(gp.preloadReferences, []);
+        assert.equal(gp.preloadBaseLanguage, null);
+    } finally {
+        GPTrans.mmix = originalMmix;
+        if (gp.debounceTimer) {
+            clearTimeout(gp.debounceTimer);
+        }
+    }
+});
