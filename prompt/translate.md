@@ -10,6 +10,7 @@ Translation from {FROM_ISO} to {TARGET_ISO} ({TARGET_DENONYM} {TARGET_LANG}) wit
 {REFERENCES}
 
 # Return Format
+   - The input may contain multiple texts separated by `------`. Translate each one independently and return them in the same order, separated by `------`. The number of segments in your output must exactly match the number of segments in the input.
    - Provide the final translation within a code block using ```.
    - Do not include alternative translations, only provide the best translation.
 

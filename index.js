@@ -263,15 +263,9 @@ class GPTrans {
             // Try different split strategies to be more robust
             let translatedTexts = translations.split(`\n${this.divider}\n`);
 
-            // If split doesn't match batch size, try alternative separators
+            // If split doesn't match batch size, try without newlines around divider
             if (translatedTexts.length !== batch.length) {
-                // Try without newlines around divider
                 translatedTexts = translations.split(this.divider);
-
-                // If still doesn't match, try with just newline
-                if (translatedTexts.length !== batch.length) {
-                    translatedTexts = translations.split(/\n{2,}/); // Split by multiple newlines
-                }
             }
 
             const contextHash = this._hash(context);
@@ -294,14 +288,23 @@ class GPTrans {
                 return;
             }
 
+            // Detect suspicious duplicates
+            const trimmed = translatedTexts.map(t => t.trim());
+            const uniqueCount = new Set(trimmed).size;
+            if (batch.length > 2 && uniqueCount === 1) {
+                console.error(`❌ All ${batch.length} translations are identical ("${trimmed[0].slice(0, 60)}..."), discarding batch`);
+                console.error(`   Batch keys: ${batch.map(([key]) => key).join(', ')}`);
+                return;
+            }
+
             batch.forEach(([key], index) => {
-                if (!translatedTexts[index] || !translatedTexts[index].trim()) {
+                if (!trimmed[index]) {
                     console.error(`❌ No translation found for ${key} at index ${index}`);
                     console.error(`   Original text: ${batch[index][1]}`);
                     return;
                 }
 
-                this.dbTarget.set(contextHash, key, translatedTexts[index].trim());
+                this.dbTarget.set(contextHash, key, trimmed[index]);
             });
 
         } catch (e) {
@@ -594,10 +597,6 @@ class GPTrans {
 
             if (refinedTexts.length !== entries.length) {
                 refinedTexts = refined.split(this.divider);
-
-                if (refinedTexts.length !== entries.length) {
-                    refinedTexts = refined.split(/\n{2,}/);
-                }
             }
 
             if (refinedTexts.length !== entries.length) {
