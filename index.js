@@ -17,7 +17,6 @@ class GPTrans {
         if (!this.#mmixInstances.has(key)) {
             let instance = ModelMix.new({
                 config: {
-                    max_history: 1,
                     debug,
                     bottleneck: {
                         minTime: 15000,
@@ -31,7 +30,7 @@ class GPTrans {
                 if (typeof instance[model] !== 'function') {
                     throw new Error(
                         `Model "${model}" is not available. Please check the model name. ` +
-                        `Available models include: gpt41, gpt4o, sonnet45, sonnet37, opus41, haiku35, etc.`
+                        `Available models include: gpt51, gpt52, sonnet46, sonnet45, opus46, haiku45, etc.`
                     );
                 }
                 instance = instance[model]();
@@ -64,7 +63,7 @@ class GPTrans {
         return isLanguageAvailable(langCode);
     }
 
-    constructor({ from = 'en-US', target = 'es', model = 'sonnet45', batchThreshold = 1500, debounceTimeout = 500, promptFile = null, name = '', context = '', instruction = '', freeze = false, debug = false } = {}) {
+    constructor({ from = 'en-US', target = 'es', model = 'sonnet46', batchThreshold = 1500, debounceTimeout = 500, promptFile = null, name = '', context = '', instruction = '', freeze = false, debug = false } = {}) {
 
         target = this.normalizeBCP47(target);
         from = this.normalizeBCP47(from);
