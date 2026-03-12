@@ -8,7 +8,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Initialize translator
 const model = new GPTrans({
-    model: ['sonnet37', 'gpt41'],
+    model: ['sonnet46', 'gpt54'],
     from: 'es',  // Assuming the source file is in Spanish
     target: 'en',
 });

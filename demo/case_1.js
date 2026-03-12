@@ -16,7 +16,7 @@ console.log(gptrans.t('Card'));
 const es2ar = new GPTrans({
     from: 'es-ES',
     target: 'es-AR',
-    model: 'sonnet37'
+    model: 'sonnet46'
 });
 
 console.log(es2ar.t('Eres muy bueno'));

@@ -236,7 +236,7 @@ GPTrans supports a fallback mechanism for translation models. Instead of providi
 
 ```javascript
 const translator = new GPTrans({
-  model: ['claude37', 'gpt41'],
+  model: ['claude46', 'gpt54'],
   // ... other options
 });
 ```
