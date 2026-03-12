@@ -1,7 +1,7 @@
 {
   "name": "gptrans",
   "type": "module",
-  "version": "2.1.0",
+  "version": "2.1.2",
   "description": "🚆 GPTrans - The smarter AI-powered way to translate.",
   "keywords": [
     "translate",
@@ -40,7 +40,7 @@
     "dotenv": "^16.4.7",
     "form-data": "^4.0.4",
     "genmix": "^1.0.4",
-    "modelmix": "^4.4.20",
+    "modelmix": "^4.4.22",
     "string-hash": "^1.1.3"
   }
 }
