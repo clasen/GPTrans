@@ -1,7 +1,7 @@
 {
   "name": "gptrans",
   "type": "module",
-  "version": "2.1.2",
+  "version": "2.1.4",
   "description": "🚆 GPTrans - The smarter AI-powered way to translate.",
   "keywords": [
     "translate",
@@ -34,13 +34,13 @@
     "url": "https://github.com/clasen/GPTrans/issues"
   },
   "homepage": "https://github.com/clasen/GPTrans#readme",
+  "engines": {
+    "node": ">=20.6.0"
+  },
   "dependencies": {
-    "axios": "^1.12.2",
     "deepbase": "^1.4.8",
-    "dotenv": "^16.4.7",
-    "form-data": "^4.0.4",
-    "genmix": "^1.0.4",
-    "modelmix": "^4.4.22",
+    "genmix": "^1.2.4",
+    "modelmix": "^4.5.6",
     "string-hash": "^1.1.3"
   }
 }

@@ -2,7 +2,6 @@ import DeepBase from 'deepbase';
 import stringHash from 'string-hash';
 import { ModelMix } from 'modelmix';
 import { isoAssoc, isLanguageAvailable } from './isoAssoc.js';
-import dotenv from 'dotenv';
 import { GeminiGenerator } from 'genmix';
 import fs from 'fs';
 import path from 'path';
@@ -69,9 +68,9 @@ class GPTrans {
         from = this.normalizeBCP47(from);
 
         try {
-            dotenv.config();
-        } catch (e) {
-
+            process.loadEnvFile();
+        } catch {
+            /* optional .env missing or unreadable */
         }
 
         const path = new URL('../../db', import.meta.url).pathname;

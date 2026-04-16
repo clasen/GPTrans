@@ -1,12 +1,15 @@
 import GPTrans from '../index.js';
-import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 // Cargar .env desde la carpeta demo
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-dotenv.config({ path: join(__dirname, '.env') });
+try {
+    process.loadEnvFile(join(__dirname, '.env'));
+} catch {
+    /* optional .env missing or unreadable */
+}
 
 console.log('🚀 Prueba de Paralelismo en GPTrans');
 console.log('⚠️  Múltiples instancias con MISMO NOMBRE y MISMO PAR DE IDIOMAS\n');

@@ -30,7 +30,7 @@ npm install gptrans
 
 ### 🌐 Environment Setup
 
-GPTrans uses dotenv for environment configuration. Create a `.env` file in your project root and add your API keys:
+On Node.js 20.6+, GPTrans loads a `.env` from the current working directory via `process.loadEnvFile()` when you construct `GPTrans` (missing or invalid files are ignored). Create a `.env` in your project root and add your API keys:
 
 ```env
 OPENAI_API_KEY=your_openai_api_key
