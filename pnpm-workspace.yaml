@@ -1,5 +1,7 @@
 allowBuilds:
   sharp: true
+minimumReleaseAgeExclude:
+  - genmix@1.2.5
 overrides:
   sharp: "^0.35.0"
   "@hono/node-server": "^2.0.5"
