@@ -1,16 +1,9 @@
 import GPTrans from '../index.js';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { join } from 'path';
 
 // Cargar .env desde la carpeta demo
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const dbPath = new URL('../db', import.meta.url).pathname;
-try {
-    process.loadEnvFile(join(__dirname, '.env'));
-} catch {
-    /* optional .env missing or unreadable */
-}
+const dbPath = join(import.meta.dirname, '../db');
+try { process.loadEnvFile(join(import.meta.dirname, '.env')); } catch { }
 
 console.log('🚀 Prueba de Paralelismo en GPTrans');
 console.log('⚠️  Múltiples instancias con MISMO NOMBRE y MISMO PAR DE IDIOMAS\n');

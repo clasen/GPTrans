@@ -1,16 +1,14 @@
 import GPTrans from '../index.js';
-import { dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { join } from 'path';
 import { promises as fs } from 'fs';
 
-// Get current file directory
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const dbPath = new URL('../db', import.meta.url).pathname;
+const dbPath = join(import.meta.dirname, '../db');
+try { process.loadEnvFile(join(import.meta.dirname, '.env')); } catch { }
 
 // Initialize translator
 const model = new GPTrans({
     path: dbPath,
-    model: ['sonnet46', 'gpt54'],
+    model: ['sonnet50', 'gpt56luna@80'],
     from: 'es',  // Assuming the source file is in Spanish
     target: 'en',
 });
@@ -19,10 +17,9 @@ const model = new GPTrans({
 await model.preload();
 
 // Read and translate the file
-const filePath = `${__dirname}/georgia_incident.md`;
+const filePath = join(import.meta.dirname, 'georgia_incident.md');
 const content = await fs.readFile(filePath, 'utf-8');
 
 // Translate the content
 const translatedContent = model.t(content);
 console.log(translatedContent);
-

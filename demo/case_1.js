@@ -1,6 +1,8 @@
 import GPTrans from '../index.js';
+import { join } from 'path';
 
-const dbPath = new URL('../db', import.meta.url).pathname;
+const dbPath = join(import.meta.dirname, '../db');
+try { process.loadEnvFile(join(import.meta.dirname, '.env')); } catch { }
 const gptrans = new GPTrans({ path: dbPath, model: 'sonnet45' });
 
 console.log(gptrans.t('Hello, {name}!', { name: 'Anya' }));
@@ -30,7 +32,7 @@ const ar2es = new GPTrans({
     path: dbPath,
     from: 'es-AR',
     target: 'es-ES',
-    model: 'gpt41'
+    model: 'gpt56terra@20'
 });
 
 console.log(ar2es.t('¿Tenés fuego?'));

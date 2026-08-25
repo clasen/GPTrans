@@ -30,7 +30,7 @@ npm install gptrans
 
 ### 🌐 Environment Setup
 
-On Node.js 20.6+, GPTrans loads a `.env` from the current working directory via `process.loadEnvFile()` when you construct `GPTrans` (missing or invalid files are ignored). Create a `.env` in your project root and add your API keys:
+GPTrans reads provider credentials from `process.env` and does not load `.env` files itself. If you use a `.env` file, load it in your application before constructing `GPTrans`. Create the file in your project root and add your API keys:
 
 ```env
 OPENAI_API_KEY=your_openai_api_key
@@ -44,8 +44,11 @@ Here's a simple example to get you started:
 
 ```javascript
 import GPTrans from 'gptrans';
+import { join } from 'node:path';
+import { loadEnvFile } from 'node:process';
 
-const dbPath = new URL('./db', import.meta.url).pathname;
+loadEnvFile(join(import.meta.dirname, '.env'));
+const dbPath = join(import.meta.dirname, 'db');
 const gptrans = new GPTrans({
   path: dbPath,
   from: 'en-US',

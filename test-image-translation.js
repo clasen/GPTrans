@@ -1,10 +1,6 @@
 import GPTrans from './index.js';
 import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 async function testImageTranslation() {
     try {
@@ -12,14 +8,14 @@ async function testImageTranslation() {
 
         // Initialize GPTrans with Portuguese as target language
         const gptrans = new GPTrans({
-            path: path.join(__dirname, 'db'),
+            path: path.join(import.meta.dirname, 'db'),
             from: 'en-US',
             target: 'pt-BR',
             model: 'sonnet45'
         });
 
         // Test image path (you'll need to provide an actual image)
-        const testImagePath = path.join(__dirname, 'test-image.jpg');
+        const testImagePath = path.join(import.meta.dirname, 'test-image.jpg');
 
         // Check if test image exists
         if (!fs.existsSync(testImagePath)) {

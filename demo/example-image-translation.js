@@ -2,16 +2,12 @@
 import GPTrans from '../index.js';
 import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 async function main() {
     try {
         // Initialize GPTrans with Spanish as target
         const gptrans = new GPTrans({
-            path: path.join(__dirname, 'db'),
+            path: path.join(import.meta.dirname, 'db'),
             from: 'en-US',
             target: 'es'
         });
@@ -24,7 +20,7 @@ async function main() {
         console.log('   Input: en/image.jpg');
         console.log('   Expected output: es/image.jpg (sibling folder)\n');
 
-        const imageInLangFolder = path.join(__dirname, 'en', 'camera_4126.jpg');
+        const imageInLangFolder = path.join(import.meta.dirname, 'en', 'camera_4126.jpg');
         if (fs.existsSync(imageInLangFolder)) {
             const result1 = await gptrans.img(imageInLangFolder);
             console.log('   Result:', result1);
@@ -39,7 +35,7 @@ async function main() {
         // console.log('   Input: ./image.jpg');
         // console.log('   Expected output: ./es/image.jpg (subfolder)\n');
 
-        // const imageInRoot = path.join(__dirname, 'camera_4126.jpg');
+        // const imageInRoot = path.join(import.meta.dirname, 'camera_4126.jpg');
         // if (fs.existsSync(imageInRoot)) {
         //     const result2 = await gptrans.img(imageInRoot);
         //     console.log('   Result:', result2);
@@ -54,7 +50,7 @@ async function main() {
         // console.log('   Input: images/photo.jpg');
         // console.log('   Expected output: images/es/photo.jpg (subfolder)\n');
 
-        // const imageInCustomFolder = path.join(__dirname, 'images', 'photo.jpg');
+        // const imageInCustomFolder = path.join(import.meta.dirname, 'images', 'photo.jpg');
         // if (fs.existsSync(imageInCustomFolder)) {
         //     const result3 = await gptrans.img(imageInCustomFolder);
         //     console.log('   Result:', result3);

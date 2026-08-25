@@ -81,8 +81,9 @@ You can manually edit translation files to override specific entries.
 
 ```javascript
 import GPTrans from 'gptrans';
+import path from 'node:path';
 
-const dbPath = new URL('./db', import.meta.url).pathname;
+const dbPath = path.join(import.meta.dirname, 'db');
 const gptrans = new GPTrans({
   path: dbPath,
   from: 'en-US',

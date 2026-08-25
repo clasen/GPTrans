@@ -6,10 +6,9 @@ import { isoAssoc, isLanguageAvailable } from './isoAssoc.js';
 import { GeminiGenerator } from 'genmix';
 import fs from 'fs';
 import pathModule from 'path';
-import { fileURLToPath } from 'url';
 
-const TRANSLATE_PROMPT_FILE = fileURLToPath(new URL('./prompt/translate.md', import.meta.url));
-const REFINE_PROMPT_FILE = fileURLToPath(new URL('./prompt/refine.md', import.meta.url));
+const TRANSLATE_PROMPT_FILE = pathModule.join(import.meta.dirname, 'prompt', 'translate.md');
+const REFINE_PROMPT_FILE = pathModule.join(import.meta.dirname, 'prompt', 'refine.md');
 const DEFAULT_MODEL_CHAIN = Object.freeze(['sonnet5@50', 'gpt56luna@100']);
 
 class GPTrans {
@@ -66,12 +65,6 @@ class GPTrans {
 
         target = this.normalizeBCP47(target);
         from = this.normalizeBCP47(from);
-
-        try {
-            process.loadEnvFile();
-        } catch {
-            /* optional .env missing or unreadable */
-        }
 
         const namePrefix = name ? '_' + name : '';
         this.dbPath = dbPath;

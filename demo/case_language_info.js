@@ -1,6 +1,8 @@
 import GPTrans from '../index.js';
+import { join } from 'path';
 
-const dbPath = new URL('../db', import.meta.url).pathname;
+const dbPath = join(import.meta.dirname, '../db');
+try { process.loadEnvFile(join(import.meta.dirname, '.env')); } catch { }
 
 // Ejemplo: Cómo obtener la información completa del idioma
 
