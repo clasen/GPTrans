@@ -1,8 +1,11 @@
 import GPTrans from '../index.js';
 
+const dbPath = new URL('../db', import.meta.url).pathname;
+
 // Ejemplo: Cómo obtener la información completa del idioma
 
 const gptrans = new GPTrans({
+    path: dbPath,
     from: 'es',
     target: 'en',
 });
@@ -25,6 +28,7 @@ console.log('  Gentilicio:', gptrans.replaceFrom.FROM_DENONYM);        // 'Spani
 console.log('\n📌 Ejemplo con variantes regionales:');
 
 const gptrans2 = new GPTrans({
+    path: dbPath,
     from: 'en-GB',
     target: 'pt-BR',
 });

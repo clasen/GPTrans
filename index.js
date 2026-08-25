@@ -1,10 +1,11 @@
 import DeepBase from 'deepbase';
+import { JsonDriver } from 'deepbase-json';
 import stringHash from 'string-hash';
 import { ModelMix } from 'modelmix';
 import { isoAssoc, isLanguageAvailable } from './isoAssoc.js';
 import { GeminiGenerator } from 'genmix';
 import fs from 'fs';
-import path from 'path';
+import pathModule from 'path';
 
 class GPTrans {
     static #mmixInstances = new Map();
@@ -62,7 +63,11 @@ class GPTrans {
         return isLanguageAvailable(langCode);
     }
 
-    constructor({ from = 'en-US', target = 'es', model = 'sonnet46', batchThreshold = 1500, debounceTimeout = 500, promptFile = null, name = '', context = '', instruction = '', freeze = false, debug = false } = {}) {
+    constructor({ from = 'en-US', target = 'es', model = 'sonnet46', batchThreshold = 1500, debounceTimeout = 500, promptFile = null, name = '', context = '', instruction = '', freeze = false, debug = false, path: dbPath } = {}) {
+
+        if (typeof dbPath !== 'string' || !pathModule.isAbsolute(dbPath)) {
+            throw new TypeError('GPTrans requires an absolute "path" option.');
+        }
 
         target = this.normalizeBCP47(target);
         from = this.normalizeBCP47(from);
@@ -73,12 +78,12 @@ class GPTrans {
             /* optional .env missing or unreadable */
         }
 
-        const path = new URL('../../db', import.meta.url).pathname;
         const namePrefix = name ? '_' + name : '';
-        this.dbPath = path;
+        this.dbPath = dbPath;
         this.instanceName = name;
-        this.dbTarget = new DeepBase({ name: 'gptrans' + namePrefix + '_' + target, path });
-        this.dbFrom = new DeepBase({ name: 'gptrans' + namePrefix + '_from_' + from, path });
+        this.dbTarget = this._createDatabase('gptrans' + namePrefix + '_' + target);
+        this.dbFrom = this._createDatabase('gptrans' + namePrefix + '_from_' + from);
+        this.pendingSourceWrites = Promise.resolve();
 
         try {
             this.replaceTarget = isoAssoc(target, 'TARGET_');
@@ -116,6 +121,17 @@ class GPTrans {
         return iso.toLowerCase();
     }
 
+    _createDatabase(name) {
+        return new DeepBase(new JsonDriver({ name, path: this.dbPath }));
+    }
+
+    _saveSourceText(context, contextHash, key, text) {
+        this.pendingSourceWrites = this.pendingSourceWrites.then(async () => {
+            await this.dbFrom.set(context, key, text);
+            await this.dbFrom.set('_context', contextHash, context);
+        });
+    }
+
     setContext(context = '') {
         if (this.context !== context && this.pendingTranslations.size > 0) {
             clearTimeout(this.debounceTimer);
@@ -143,9 +159,10 @@ class GPTrans {
         // If this key was enqueued via t(), avoid duplicate work in a later batch.
         this._dequeuePendingTranslation(key);
 
+        await this.pendingSourceWrites;
         const translatedText = await this._translate(text, [[key, text]], {}, this.preloadBaseLanguage);
         const immediateTranslation = translatedText.trim();
-        this.dbTarget.set(contextHash, key, immediateTranslation);
+        await this.dbTarget.set(contextHash, key, immediateTranslation);
 
         return this._applyParams(immediateTranslation, params);
     }
@@ -171,11 +188,10 @@ class GPTrans {
         }
 
         const contextHash = this._hash(this.context);
-        const translation = this.dbTarget.get(contextHash, key);
+        const translation = this.dbTarget.getSync(contextHash, key);
 
-        if (!this.freeze && !this.dbFrom.get(this.context, key)) {
-            this.dbFrom.set(this.context, key, text);
-            this.dbFrom.set('_context', contextHash, this.context);
+        if (!this.freeze && !this.dbFrom.getSync(this.context, key)) {
+            this._saveSourceText(this.context, contextHash, key, text);
         }
 
         if (translation) {
@@ -233,15 +249,16 @@ class GPTrans {
     async _processBatch(context) {
 
         const batch = Array.from(this.pendingTranslations.entries());
+        const batchCharCount = this.pendingCharCount;
 
         // Clear pending translations and character count before awaiting translation
         this.pendingTranslations.clear();
-
-        this.modelConfig.options.max_tokens = this.pendingCharCount + 1000;
-        const minTime = Math.floor((60000 / (8000 / this.pendingCharCount)) * 1.4);
-        GPTrans.mmix(this.modelKey, this.modelMixOptions).limiter.updateSettings({ minTime });
-
         this.pendingCharCount = 0;
+        await this.pendingSourceWrites;
+
+        this.modelConfig.options.max_tokens = batchCharCount + 1000;
+        const minTime = Math.floor((60000 / (8000 / batchCharCount)) * 1.4);
+        GPTrans.mmix(this.modelKey, this.modelMixOptions).limiter.updateSettings({ minTime });
 
         // Load references for each text in the batch if preloadReferences is set
         const batchReferences = {};
@@ -280,7 +297,7 @@ class GPTrans {
                 const minLength = Math.min(translatedTexts.length, batch.length);
                 for (let i = 0; i < minLength; i++) {
                     if (translatedTexts[i] && translatedTexts[i].trim()) {
-                        this.dbTarget.set(contextHash, batch[i][0], translatedTexts[i].trim());
+                        await this.dbTarget.set(contextHash, batch[i][0], translatedTexts[i].trim());
                     }
                 }
                 return;
@@ -295,15 +312,15 @@ class GPTrans {
                 return;
             }
 
-            batch.forEach(([key], index) => {
+            for (const [index, [key]] of batch.entries()) {
                 if (!trimmed[index]) {
                     console.error(`❌ No translation found for ${key} at index ${index}`);
                     console.error(`   Original text: ${batch[index][1]}`);
-                    return;
+                    continue;
                 }
 
-                this.dbTarget.set(contextHash, key, trimmed[index]);
-            });
+                await this.dbTarget.set(contextHash, key, trimmed[index]);
+            }
 
         } catch (e) {
             console.error('❌ Error in _processBatch:', e.message);
@@ -411,12 +428,9 @@ class GPTrans {
 
         for (const lang of referenceLangs) {
             const namePrefix = this.instanceName ? '_' + this.instanceName : '';
-            const dbRef = new DeepBase({
-                name: `gptrans${namePrefix}_${lang}`,
-                path: this.dbPath
-            });
+            const dbRef = this._createDatabase(`gptrans${namePrefix}_${lang}`);
 
-            const translation = dbRef.get(contextHash, key);
+            const translation = dbRef.getSync(contextHash, key);
             if (translation) {
                 references[lang] = translation;
             }
@@ -426,6 +440,8 @@ class GPTrans {
     }
 
     async preload({ references = [], baseLanguage = null } = {}) {
+
+        await this.pendingSourceWrites;
 
         if (!this.context && this.replaceFrom.FROM_ISO === this.replaceTarget.TARGET_ISO) {
             return this;
@@ -454,7 +470,7 @@ class GPTrans {
         // Track which keys need translation
         const keysNeedingTranslation = [];
 
-        for (const [context, pairs] of this.dbFrom.entries()) {
+        for (const [context, pairs] of Object.entries(this.dbFrom.getSync() ?? {})) {
             // Skip the _context metadata
             if (context === '_context') continue;
 
@@ -463,7 +479,7 @@ class GPTrans {
 
             for (const [key, text] of Object.entries(pairs)) {
                 // Check if translation already exists
-                if (!this.dbTarget.get(contextHash, key)) {
+                if (!this.dbTarget.getSync(contextHash, key)) {
                     keysNeedingTranslation.push({ context, contextHash, key });
                     // Only call get() if translation doesn't exist
                     this.get(key, text);
@@ -488,7 +504,7 @@ class GPTrans {
                 // Check if all needed translations are now complete
                 let allTranslated = true;
                 for (const { contextHash, key } of keysNeedingTranslation) {
-                    if (!this.dbTarget.get(contextHash, key)) {
+                    if (!this.dbTarget.getSync(contextHash, key)) {
                         allTranslated = false;
                         break;
                     }
@@ -514,12 +530,14 @@ class GPTrans {
     }
 
     async purge() {
+        await this.pendingSourceWrites;
+
         // Iterate through dbTarget and remove keys that don't exist in dbFrom
-        for (const [contextHash, pairs] of this.dbTarget.entries()) {
+        for (const [contextHash, pairs] of Object.entries(this.dbTarget.getSync() ?? {})) {
             for (const key of Object.keys(pairs)) {
 
-                const context = this.dbFrom.get('_context', contextHash);
-                if (!this.dbFrom.get(context, key)) {
+                const context = this.dbFrom.getSync('_context', contextHash);
+                if (!this.dbFrom.getSync(context, key)) {
                     console.log(contextHash, key);
                     await this.dbTarget.del(contextHash, key);
                 }
@@ -546,7 +564,7 @@ class GPTrans {
         let currentBatch = [];
         let currentCharCount = 0;
 
-        for (const [contextHash, pairs] of this.dbTarget.entries()) {
+        for (const [contextHash, pairs] of Object.entries(this.dbTarget.getSync() ?? {})) {
             for (const [key, translation] of Object.entries(pairs)) {
                 const entryCharCount = translation.length;
 
@@ -607,20 +625,20 @@ class GPTrans {
                 const minLength = Math.min(refinedTexts.length, entries.length);
                 for (let i = 0; i < minLength; i++) {
                     if (refinedTexts[i] && refinedTexts[i].trim()) {
-                        this.dbTarget.set(entries[i].contextHash, entries[i].key, refinedTexts[i].trim());
+                        await this.dbTarget.set(entries[i].contextHash, entries[i].key, refinedTexts[i].trim());
                     }
                 }
                 return;
             }
 
-            entries.forEach((entry, index) => {
+            for (const [index, entry] of entries.entries()) {
                 const refinedText = refinedTexts[index]?.trim();
                 if (!refinedText) {
                     console.error(`❌ No refined text for ${entry.key} at index ${index}`);
-                    return;
+                    continue;
                 }
-                this.dbTarget.set(entry.contextHash, entry.key, refinedText);
-            });
+                await this.dbTarget.set(entry.contextHash, entry.key, refinedText);
+            }
 
         } catch (e) {
             console.error('❌ Error in _processRefineBatch:', e.message);
@@ -668,13 +686,13 @@ class GPTrans {
         } = options;
 
         // Parse image filename and extension
-        const parsedPath = path.parse(imagePath);
+        const parsedPath = pathModule.parse(imagePath);
         const filename = parsedPath.base;
         const targetLang = this.replaceTarget.TARGET_ISO || 'en';
 
         // Check if image is already in a language folder
-        const dirName = path.basename(path.dirname(imagePath));
-        const parentDir = path.dirname(path.dirname(imagePath));
+        const dirName = pathModule.basename(pathModule.dirname(imagePath));
+        const parentDir = pathModule.dirname(pathModule.dirname(imagePath));
 
         // If the image is in a language folder (e.g., en/image.jpg)
         // create the target at the same level (e.g., es/image.jpg)
@@ -683,12 +701,12 @@ class GPTrans {
 
         if (this._isLanguageFolder(dirName)) {
             // Image is in a language folder: create sibling folder
-            targetDir = path.join(parentDir, targetLang);
-            targetPath = path.join(targetDir, filename);
+            targetDir = pathModule.join(parentDir, targetLang);
+            targetPath = pathModule.join(targetDir, filename);
         } else {
             // Image is not in a language folder: create subfolder
-            targetDir = path.join(path.dirname(imagePath), targetLang);
-            targetPath = path.join(targetDir, filename);
+            targetDir = pathModule.join(pathModule.dirname(imagePath), targetLang);
+            targetPath = pathModule.join(targetDir, filename);
         }
 
         // Check if translated image already exists
@@ -736,7 +754,7 @@ class GPTrans {
             }
 
             // Save translated image - preserve original file format
-            const filename = path.basename(targetPath, path.extname(targetPath));
+            const filename = pathModule.basename(targetPath, pathModule.extname(targetPath));
             const formatOptions = generator.getReferenceMetadata();
 
             // Apply default quality settings for JPEG images

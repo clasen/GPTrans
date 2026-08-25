@@ -1,11 +1,14 @@
 import GPTrans from '../index.js';
 
+const dbPath = new URL('../db', import.meta.url).pathname;
+
 console.log('🚀 Testing GPTrans Refine\n');
 console.log('='.repeat(70));
 
 async function testRefine() {
     // Step 1: Create initial translations
     const gptrans = new GPTrans({
+        path: dbPath,
         from: 'en-US',
         target: 'es-AR',
         model: 'sonnet45',

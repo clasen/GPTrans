@@ -45,7 +45,9 @@ Here's a simple example to get you started:
 ```javascript
 import GPTrans from 'gptrans';
 
+const dbPath = new URL('./db', import.meta.url).pathname;
 const gptrans = new GPTrans({
+  path: dbPath,
   from: 'en-US',
   target: 'es-AR',
   model: 'sonnet45'
@@ -74,6 +76,7 @@ When creating a new instance of GPTrans, you can customize:
 
 | Option | Description | Default |
 |--------|-------------|---------|
+| `path` | Absolute directory path for the DeepBase translation cache | Required |
 | `from` | Source language locale (BCP 47) | `en-US` |
 | `target` | Target language locale (BCP 47) | `es` |
 | `model` | Translation model key or array of models for fallback | `sonnet45` `gpt41` |
@@ -96,7 +99,7 @@ For simplified or universal language codes, you can omit the region specificatio
 ## 🔍 How It Works
 
 1. **First-Time Translation Behavior:** On the first request, Gptrans will return the original text while processing the translation in the background. This ensures your application remains responsive without waiting for API calls.
-2. **Translation Caching:** Once processed, translations are stored in `db/gptrans_<tag>.json`. Subsequent requests for the same text will be served instantly from the cache.
+2. **Translation Caching:** Once processed, translations are stored as `gptrans_<tag>.json` under the required absolute `path`. Subsequent requests for the same text will be served instantly from the cache.
 3. **Smart Batch Processing:** Automatically groups translation requests to optimize API usage and provide better context.
 4. **Dynamic Model Integration:** Easily plug in multiple AI translation providers with the ModelMix library.
 5. **Customizable Prompts:** Load and modify translation prompts (see the `prompt/translate.md` file) to fine-tune the translation output.
@@ -132,6 +135,7 @@ The `instruction` option lets you guide the AI translator's style, tone, or beha
 
 ```javascript
 const gptrans = new GPTrans({
+  path: dbPath,
   from: 'en',
   target: 'es-AR',
   instruction: 'Use natural and colloquial tone'
@@ -168,7 +172,7 @@ Include translations from other languages as context to improve accuracy and con
 
 ```javascript
 // Use English and Portuguese translations as reference
-const gptrans = new GPTrans({ from: 'es', target: 'fr' });
+const gptrans = new GPTrans({ path: dbPath, from: 'es', target: 'fr' });
 await gptrans.preload({ 
   references: ['en', 'pt'] 
 });
@@ -182,7 +186,7 @@ Translate from an intermediate language instead of the original:
 
 ```javascript
 // Original is Spanish, but translate FROM English TO Portuguese
-const gptrans = new GPTrans({ from: 'es', target: 'pt' });
+const gptrans = new GPTrans({ path: dbPath, from: 'es', target: 'pt' });
 await gptrans.preload({ 
   baseLanguage: 'en' 
 });
@@ -199,7 +203,7 @@ You can use both options together:
 
 ```javascript
 // Translate from English to German, showing Spanish and Portuguese as reference
-const gptrans = new GPTrans({ from: 'es', target: 'de' });
+const gptrans = new GPTrans({ path: dbPath, from: 'es', target: 'de' });
 await gptrans.preload({ 
   baseLanguage: 'en',
   references: ['es', 'pt'] 
@@ -215,7 +219,7 @@ await gptrans.preload({
 // English: "The student is very good" (neutral)
 
 // Solution: Translate to Portuguese using English as base
-const ptTranslator = new GPTrans({ from: 'es', target: 'pt' });
+const ptTranslator = new GPTrans({ path: dbPath, from: 'es', target: 'pt' });
 await ptTranslator.preload({ 
   baseLanguage: 'en',     // Use neutral English version
   references: ['es']       // Show original Spanish for context
@@ -236,6 +240,7 @@ GPTrans supports a fallback mechanism for translation models. Instead of providi
 
 ```javascript
 const translator = new GPTrans({
+  path: dbPath,
   model: ['claude46', 'gpt54'],
   // ... other options
 });
@@ -251,7 +256,7 @@ When using multiple models:
 The `refine()` method lets you improve existing translations by running them through the AI again with a specific instruction. It processes translations in batches (same as the translation flow) and only updates entries that genuinely benefit from the refinement.
 
 ```javascript
-const gptrans = new GPTrans({ from: 'en', target: 'es-AR' });
+const gptrans = new GPTrans({ path: dbPath, from: 'en', target: 'es-AR' });
 
 // After translations already exist...
 // Refine with a single instruction
@@ -306,4 +311,3 @@ Contributions are welcome! Please open an issue or submit a pull request on GitH
 GPTrans is released under the MIT License.
 
 Happy translating! 🌍✨
-

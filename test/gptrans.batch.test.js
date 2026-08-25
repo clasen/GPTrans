@@ -1,11 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { tmpdir } from 'node:os';
 import GPTrans from '../index.js';
 
 function createMemoryDb() {
     const store = new Map();
     return {
-        get(context, key) {
+        getSync(...keys) {
+            if (keys.length === 0) {
+                return Object.fromEntries(Array.from(store.entries()).map(([context, pairs]) => [
+                    context,
+                    Object.fromEntries(pairs.entries())
+                ]));
+            }
+            const [context, key] = keys;
+            if (keys.length === 1) {
+                return Object.fromEntries(store.get(context)?.entries() ?? []);
+            }
             return store.get(context)?.get(key);
         },
         set(context, key, value) {
@@ -35,6 +46,7 @@ function createTestInstance() {
         target: 'en-US',
         debounceTimeout: 10_000,
         batchThreshold: 50_000,
+        path: tmpdir(),
         name: `unit_${Date.now()}_${Math.random().toString(36).slice(2)}`
     });
 
@@ -63,9 +75,9 @@ test('_processBatch splits correctly with \\n------\\n separators', async (t) =>
     await gp._processBatch('');
 
     const h = gp._hash('');
-    assert.equal(gp.dbTarget.get(h, 'k1'), 'Hello');
-    assert.equal(gp.dbTarget.get(h, 'k2'), 'Goodbye');
-    assert.equal(gp.dbTarget.get(h, 'k3'), 'Thank you');
+    assert.equal(gp.dbTarget.getSync(h, 'k1'), 'Hello');
+    assert.equal(gp.dbTarget.getSync(h, 'k2'), 'Goodbye');
+    assert.equal(gp.dbTarget.getSync(h, 'k3'), 'Thank you');
 
     GPTrans.mmix = originalMmix;
 });
@@ -86,9 +98,9 @@ test('_processBatch falls back to split by divider without newlines', async (t) 
     await gp._processBatch('');
 
     const h = gp._hash('');
-    assert.equal(gp.dbTarget.get(h, 'k1'), 'Hello');
-    assert.equal(gp.dbTarget.get(h, 'k2'), 'Goodbye');
-    assert.equal(gp.dbTarget.get(h, 'k3'), 'Thank you');
+    assert.equal(gp.dbTarget.getSync(h, 'k1'), 'Hello');
+    assert.equal(gp.dbTarget.getSync(h, 'k2'), 'Goodbye');
+    assert.equal(gp.dbTarget.getSync(h, 'k3'), 'Thank you');
 
     GPTrans.mmix = originalMmix;
 });
@@ -149,10 +161,10 @@ test('_processBatch discards batch when all translations are identical (3+)', as
 
     const h = gp._hash('');
     // Nothing should be saved
-    assert.equal(gp.dbTarget.get(h, 'k1'), undefined);
-    assert.equal(gp.dbTarget.get(h, 'k2'), undefined);
-    assert.equal(gp.dbTarget.get(h, 'k3'), undefined);
-    assert.equal(gp.dbTarget.get(h, 'k4'), undefined);
+    assert.equal(gp.dbTarget.getSync(h, 'k1'), undefined);
+    assert.equal(gp.dbTarget.getSync(h, 'k2'), undefined);
+    assert.equal(gp.dbTarget.getSync(h, 'k3'), undefined);
+    assert.equal(gp.dbTarget.getSync(h, 'k4'), undefined);
 
     assert.ok(errors.some(e => e.includes('translations are identical')));
 
@@ -174,8 +186,8 @@ test('_processBatch allows batch of 2 with identical translations (edge case)', 
     await gp._processBatch('');
 
     const h = gp._hash('');
-    assert.equal(gp.dbTarget.get(h, 'k1'), 'Yes');
-    assert.equal(gp.dbTarget.get(h, 'k2'), 'Yes');
+    assert.equal(gp.dbTarget.getSync(h, 'k1'), 'Yes');
+    assert.equal(gp.dbTarget.getSync(h, 'k2'), 'Yes');
 
     GPTrans.mmix = originalMmix;
 });
@@ -196,9 +208,9 @@ test('_processBatch saves partial duplicates normally', async (t) => {
     await gp._processBatch('');
 
     const h = gp._hash('');
-    assert.equal(gp.dbTarget.get(h, 'k1'), 'Hello');
-    assert.equal(gp.dbTarget.get(h, 'k2'), 'Hello');
-    assert.equal(gp.dbTarget.get(h, 'k3'), 'Goodbye');
+    assert.equal(gp.dbTarget.getSync(h, 'k1'), 'Hello');
+    assert.equal(gp.dbTarget.getSync(h, 'k2'), 'Hello');
+    assert.equal(gp.dbTarget.getSync(h, 'k3'), 'Goodbye');
 
     GPTrans.mmix = originalMmix;
 });
@@ -227,9 +239,9 @@ test('_processBatch saves partial results on count mismatch', async (t) => {
     console.error = origError;
 
     const h = gp._hash('');
-    assert.equal(gp.dbTarget.get(h, 'k1'), 'Hello');
-    assert.equal(gp.dbTarget.get(h, 'k2'), 'Goodbye');
-    assert.equal(gp.dbTarget.get(h, 'k3'), undefined); // Not saved
+    assert.equal(gp.dbTarget.getSync(h, 'k1'), 'Hello');
+    assert.equal(gp.dbTarget.getSync(h, 'k2'), 'Goodbye');
+    assert.equal(gp.dbTarget.getSync(h, 'k3'), undefined); // Not saved
 
     assert.ok(errors.some(e => e.includes('Translation count mismatch')));
 

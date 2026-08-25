@@ -5,6 +5,7 @@ import { dirname, join } from 'path';
 // Cargar .env desde la carpeta demo
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+const dbPath = new URL('../db', import.meta.url).pathname;
 try {
     process.loadEnvFile(join(__dirname, '.env'));
 } catch {
@@ -43,6 +44,7 @@ async function testParallelTranslations() {
         texts.map(async (text, index) => {
             // Todas las instancias comparten el MISMO NOMBRE
             const gptrans = new GPTrans({ 
+                path: dbPath,
                 from: sourceLang, 
                 target: targetLang,
                 model: 'sonnet45',

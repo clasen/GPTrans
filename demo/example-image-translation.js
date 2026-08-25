@@ -11,6 +11,7 @@ async function main() {
     try {
         // Initialize GPTrans with Spanish as target
         const gptrans = new GPTrans({
+            path: path.join(__dirname, 'db'),
             from: 'en-US',
             target: 'es'
         });
@@ -81,4 +82,3 @@ async function main() {
 }
 
 main();
-

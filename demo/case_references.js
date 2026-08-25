@@ -5,6 +5,7 @@ import { dirname, join } from 'path';
 // Load .env from demo folder
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+const dbPath = new URL('../db', import.meta.url).pathname;
 try {
     process.loadEnvFile(join(__dirname, '.env'));
 } catch {
@@ -19,6 +20,7 @@ async function testReferences() {
     
     // First, create translations in English and Portuguese
     const enTranslator = new GPTrans({ 
+        path: dbPath,
         from: 'es', 
         target: 'en',
         model: 'sonnet45',
@@ -27,6 +29,7 @@ async function testReferences() {
     });
     
     const ptTranslator = new GPTrans({ 
+        path: dbPath,
         from: 'es', 
         target: 'pt',
         model: 'sonnet45',
@@ -63,6 +66,7 @@ async function testReferences() {
     
     // Now translate to French using English as reference
     const frTranslator = new GPTrans({ 
+        path: dbPath,
         from: 'es', 
         target: 'fr',
         model: 'sonnet45',
@@ -86,6 +90,7 @@ async function testReferences() {
     
     // Translate from English to Italian (using English as base instead of Spanish)
     const itTranslator = new GPTrans({ 
+        path: dbPath,
         from: 'es', 
         target: 'it',
         model: 'sonnet45',
@@ -110,6 +115,7 @@ async function testReferences() {
     
     // Translate to German with multiple references
     const deTranslator = new GPTrans({ 
+        path: dbPath,
         from: 'es', 
         target: 'de',
         model: 'sonnet45',

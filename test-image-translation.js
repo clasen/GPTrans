@@ -12,6 +12,7 @@ async function testImageTranslation() {
 
         // Initialize GPTrans with Portuguese as target language
         const gptrans = new GPTrans({
+            path: path.join(__dirname, 'db'),
             from: 'en-US',
             target: 'pt-BR',
             model: 'sonnet45'
@@ -67,4 +68,3 @@ async function testImageTranslation() {
 
 // Run the test
 testImageTranslation();
-

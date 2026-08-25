@@ -82,7 +82,9 @@ You can manually edit translation files to override specific entries.
 ```javascript
 import GPTrans from 'gptrans';
 
+const dbPath = new URL('./db', import.meta.url).pathname;
 const gptrans = new GPTrans({
+  path: dbPath,
   from: 'en-US',
   target: 'es-AR',
   model: 'sonnet45'
@@ -119,7 +121,7 @@ console.log(gptrans.setContext().t('Welcome back'));
 ### Translate text with parameter substitution
 
 ```javascript
-const gptrans = new GPTrans({ from: 'en', target: 'es-AR' });
+const gptrans = new GPTrans({ path: dbPath, from: 'en', target: 'es-AR' });
 console.log(gptrans.t('Hello, {name}!', { name: 'Martin' }));
 // First call: "Hello, Martin!" (original)
 // After caching: "Hola, Martin!" (translated)
@@ -129,6 +131,7 @@ console.log(gptrans.t('Hello, {name}!', { name: 'Martin' }));
 
 ```javascript
 const gptrans = new GPTrans({
+  path: dbPath,
   from: 'en',
   target: 'fr',
   model: ['sonnet45', 'gpt41']  // falls back to gpt41 if sonnet45 fails
@@ -138,7 +141,7 @@ const gptrans = new GPTrans({
 ### Pre-translate all pending texts
 
 ```javascript
-const gptrans = new GPTrans({ from: 'en', target: 'es' });
+const gptrans = new GPTrans({ path: dbPath, from: 'en', target: 'es' });
 
 // Register texts
 gptrans.t('Welcome');
@@ -157,7 +160,7 @@ console.log(gptrans.t('Welcome'));  // "Bienvenido"
 Use existing translations in other languages as context for better accuracy:
 
 ```javascript
-const gptrans = new GPTrans({ from: 'es', target: 'fr' });
+const gptrans = new GPTrans({ path: dbPath, from: 'es', target: 'fr' });
 await gptrans.preload({
   references: ['en', 'pt']  // AI sees English and Portuguese as reference
 });
@@ -168,7 +171,7 @@ await gptrans.preload({
 Translate from an intermediate language instead of the original (useful for gender-neutral intermediaries):
 
 ```javascript
-const gptrans = new GPTrans({ from: 'es', target: 'pt' });
+const gptrans = new GPTrans({ path: dbPath, from: 'es', target: 'pt' });
 await gptrans.preload({
   baseLanguage: 'en',       // translate FROM English instead of Spanish
   references: ['es']        // show original Spanish for context
@@ -178,7 +181,7 @@ await gptrans.preload({
 ### Set context for gender-aware translations
 
 ```javascript
-const gptrans = new GPTrans({ from: 'en', target: 'es-AR' });
+const gptrans = new GPTrans({ path: dbPath, from: 'en', target: 'es-AR' });
 
 // Context applies to next translation(s) in the batch
 console.log(gptrans.setContext('The user is female').t('You are welcome'));
@@ -191,6 +194,7 @@ console.log(gptrans.setContext().t('Thank you'));
 
 ```javascript
 const gptrans = new GPTrans({
+  path: dbPath,
   from: 'en', target: 'es-AR',
   instruction: 'Use a formal and professional tone'
 });
@@ -203,7 +207,7 @@ console.log(gptrans.t('Welcome to our platform'));
 Improve cached translations with specific instructions:
 
 ```javascript
-const gptrans = new GPTrans({ from: 'en', target: 'es-AR' });
+const gptrans = new GPTrans({ path: dbPath, from: 'en', target: 'es-AR' });
 
 // Single instruction
 await gptrans.refine('Use a more colloquial tone');
@@ -224,7 +228,7 @@ await gptrans.refine('More formal', { promptFile: './my-refine-prompt.md' });
 Requires `GEMINI_API_KEY`. Auto-detects language folders for output path:
 
 ```javascript
-const gptrans = new GPTrans({ from: 'en', target: 'es' });
+const gptrans = new GPTrans({ path: dbPath, from: 'en', target: 'es' });
 
 // en/banner.jpg → es/banner.jpg (auto sibling folder)
 const translatedPath = await gptrans.img('en/banner.jpg');
@@ -240,7 +244,7 @@ const result = await gptrans.img('en/hero.jpg', {
 ### Freeze mode (prevent new translations)
 
 ```javascript
-const gptrans = new GPTrans({ from: 'en', target: 'es', freeze: true });
+const gptrans = new GPTrans({ path: dbPath, from: 'en', target: 'es', freeze: true });
 
 // Returns original text, logs "[key] text" — nothing queued
 console.log(gptrans.t('New text'));
@@ -262,6 +266,7 @@ await gptrans.purge();
 ```javascript
 // Spain Spanish → Argentina Spanish
 const es2ar = new GPTrans({
+  path: dbPath,
   from: 'es-ES',
   target: 'es-AR',
   model: 'sonnet45'
@@ -301,7 +306,7 @@ if (GPTrans.isLanguageAvailable('pt-BR')) {
 
 | Method | Returns | Description |
 | --- | --- | --- |
-| `new GPTrans(options)` | `GPTrans` | Create instance with `from`, `target`, `model`, etc. |
+| `new GPTrans(options)` | `GPTrans` | Create an instance. `options.path` must be an absolute directory path. |
 | `.t(text, params?)` | `string` | Translate text (sync). Returns cached or original. |
 | `.get(key, text)` | `string \| undefined` | Get translation by key, queue if missing. |
 | `.setContext(context?)` | `this` | Set context for next batch (gender, tone, etc.). |

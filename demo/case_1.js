@@ -1,6 +1,7 @@
 import GPTrans from '../index.js';
 
-const gptrans = new GPTrans({ model: 'sonnet45' });
+const dbPath = new URL('../db', import.meta.url).pathname;
+const gptrans = new GPTrans({ path: dbPath, model: 'sonnet45' });
 
 console.log(gptrans.t('Hello, {name}!', { name: 'Anya' }));
 
@@ -14,6 +15,7 @@ console.log(gptrans.t('Card'));
 
 // Case 2: Translate from Spanish Spain to Spanish Argentina
 const es2ar = new GPTrans({
+    path: dbPath,
     from: 'es-ES',
     target: 'es-AR',
     model: 'sonnet46'
@@ -25,10 +27,10 @@ console.log(es2ar.setContext().t('Tienes fuego?'));
 
 // Case 3
 const ar2es = new GPTrans({
+    path: dbPath,
     from: 'es-AR',
     target: 'es-ES',
     model: 'gpt41'
 });
 
 console.log(ar2es.t('¿Tenés fuego?'));
-
