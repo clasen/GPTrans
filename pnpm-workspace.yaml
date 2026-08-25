@@ -4,6 +4,7 @@ minimumReleaseAgeExclude:
   - genmix@1.2.5
   - deepbase-json@3.9.0
   - deepbase@3.9.0
+  - modelmix@5.1.6
 overrides:
   sharp: "^0.35.0"
   "@hono/node-server": "^2.0.5"

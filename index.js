@@ -6,16 +6,22 @@ import { isoAssoc, isLanguageAvailable } from './isoAssoc.js';
 import { GeminiGenerator } from 'genmix';
 import fs from 'fs';
 import pathModule from 'path';
+import { fileURLToPath } from 'url';
+
+const TRANSLATE_PROMPT_FILE = fileURLToPath(new URL('./prompt/translate.md', import.meta.url));
+const REFINE_PROMPT_FILE = fileURLToPath(new URL('./prompt/refine.md', import.meta.url));
+const DEFAULT_MODEL_CHAIN = Object.freeze(['sonnet5@50', 'gpt56luna@100']);
 
 class GPTrans {
     static #mmixInstances = new Map();
     static #translationLocks = new Map();
 
-    static mmix(models = 'sonnet45', { debug = 0 } = {}) {
-        const key = Array.isArray(models) ? models.join(',') : models;
+    static mmix(models = DEFAULT_MODEL_CHAIN, { debug = 0 } = {}) {
+        const modelChain = Array.isArray(models) ? models : [models];
+        const key = modelChain.join(',');
 
         if (!this.#mmixInstances.has(key)) {
-            let instance = ModelMix.new({
+            const instance = ModelMix.new({
                 config: {
                     debug,
                     bottleneck: {
@@ -23,18 +29,7 @@ class GPTrans {
                         maxConcurrent: 1
                     }
                 }
-            });
-            const modelArray = Array.isArray(models) ? models : [models];
-
-            for (const model of modelArray) {
-                if (typeof instance[model] !== 'function') {
-                    throw new Error(
-                        `Model "${model}" is not available. Please check the model name. ` +
-                        `Available models include: gpt51, gpt52, sonnet46, sonnet45, opus46, haiku45, etc.`
-                    );
-                }
-                instance = instance[model]();
-            }
+            }).chain(...modelChain);
 
             this.#mmixInstances.set(key, instance);
         }
@@ -63,7 +58,7 @@ class GPTrans {
         return isLanguageAvailable(langCode);
     }
 
-    constructor({ from = 'en-US', target = 'es', model = 'sonnet46', batchThreshold = 1500, debounceTimeout = 500, promptFile = null, name = '', context = '', instruction = '', freeze = false, debug = false, path: dbPath } = {}) {
+    constructor({ from = 'en-US', target = 'es', model = DEFAULT_MODEL_CHAIN, batchThreshold = 1500, debounceTimeout = 500, promptFile = null, name = '', context = '', instruction = '', freeze = false, debug = false, path: dbPath } = {}) {
 
         if (typeof dbPath !== 'string' || !pathModule.isAbsolute(dbPath)) {
             throw new TypeError('GPTrans requires an absolute "path" option.');
@@ -100,7 +95,7 @@ class GPTrans {
         this.isProcessingBatch = false; // Track if a batch is currently being processed
         this.modelMixOptions = { debug };
         this.modelKey = model;
-        this.promptFile = promptFile ?? new URL('./prompt/translate.md', import.meta.url).pathname;
+        this.promptFile = promptFile ? pathModule.resolve(promptFile) : TRANSLATE_PROMPT_FILE;
         this.context = context;
         this.instruction = instruction;
         this.freeze = freeze;
@@ -335,7 +330,7 @@ class GPTrans {
         try {
             const model = GPTrans.mmix(this.modelKey, this.modelMixOptions);
 
-            model.setSystem("You are an expert translator specialized in literary translation between {FROM_LANG} and {TARGET_DENONYM} {TARGET_LANG}.");
+            model.setSystem("You are an expert translator specialized in literary translation between <%- FROM_LANG %> and <%- TARGET_DENONYM %> <%- TARGET_LANG %>.");
 
             // Build references section (includes header when references exist, empty otherwise)
             let referencesText = '';
@@ -379,21 +374,21 @@ class GPTrans {
                 }
             }
 
-            // Use ModelMix templates: addTextFromFile + replace + block
+            // Use ModelMix templates: addTextFromFile + assign + block
             model.addTextFromFile(this.promptFile);
-            model.replace({
-                '{INPUT}': text,
-                '{CONTEXT}': this.context,
-                '{INSTRUCTION}': this.instruction,
-                '{REFERENCES}': referencesText,
-                '{TARGET_ISO}': this.replaceTarget.TARGET_ISO,
-                '{TARGET_LANG}': this.replaceTarget.TARGET_LANG,
-                '{TARGET_COUNTRY}': this.replaceTarget.TARGET_COUNTRY,
-                '{TARGET_DENONYM}': this.replaceTarget.TARGET_DENONYM,
-                '{FROM_ISO}': fromReplace.FROM_ISO,
-                '{FROM_LANG}': fromReplace.FROM_LANG,
-                '{FROM_COUNTRY}': fromReplace.FROM_COUNTRY,
-                '{FROM_DENONYM}': fromReplace.FROM_DENONYM,
+            model.assign({
+                INPUT: text,
+                CONTEXT: this.context,
+                INSTRUCTION: this.instruction,
+                REFERENCES: referencesText,
+                TARGET_ISO: this.replaceTarget.TARGET_ISO,
+                TARGET_LANG: this.replaceTarget.TARGET_LANG,
+                TARGET_COUNTRY: this.replaceTarget.TARGET_COUNTRY,
+                TARGET_DENONYM: this.replaceTarget.TARGET_DENONYM,
+                FROM_ISO: fromReplace.FROM_ISO,
+                FROM_LANG: fromReplace.FROM_LANG,
+                FROM_COUNTRY: fromReplace.FROM_COUNTRY,
+                FROM_DENONYM: fromReplace.FROM_DENONYM,
             });
 
             return await model.block({ addSystemExtra: false });
@@ -557,7 +552,7 @@ class GPTrans {
         }
 
         const finalInstruction = instructions.length > 1 ? `- ${merged}` : merged;
-        const refinePromptFile = promptFile ?? new URL('./prompt/refine.md', import.meta.url).pathname;
+        const refinePromptFile = promptFile ? pathModule.resolve(promptFile) : REFINE_PROMPT_FILE;
 
         // Collect all existing translations grouped by contextHash
         const allBatches = [];
@@ -652,22 +647,22 @@ class GPTrans {
         try {
             const model = GPTrans.mmix(this.modelKey, this.modelMixOptions);
 
-            model.setSystem("You are an expert translator and editor specialized in refining {TARGET_DENONYM} {TARGET_LANG} translations.");
+            model.setSystem("You are an expert translator and editor specialized in refining <%- TARGET_DENONYM %> <%- TARGET_LANG %> translations.");
 
-            // Use ModelMix templates: addTextFromFile + replace + block
+            // Use ModelMix templates: addTextFromFile + assign + block
             model.addTextFromFile(refinePromptFile);
-            model.replace({
-                '{INPUT}': text,
-                '{INSTRUCTION}': instruction,
-                '{CONTEXT}': this.context,
-                '{TARGET_ISO}': this.replaceTarget.TARGET_ISO,
-                '{TARGET_LANG}': this.replaceTarget.TARGET_LANG,
-                '{TARGET_COUNTRY}': this.replaceTarget.TARGET_COUNTRY,
-                '{TARGET_DENONYM}': this.replaceTarget.TARGET_DENONYM,
-                '{FROM_ISO}': this.replaceFrom.FROM_ISO,
-                '{FROM_LANG}': this.replaceFrom.FROM_LANG,
-                '{FROM_COUNTRY}': this.replaceFrom.FROM_COUNTRY,
-                '{FROM_DENONYM}': this.replaceFrom.FROM_DENONYM,
+            model.assign({
+                INPUT: text,
+                INSTRUCTION: instruction,
+                CONTEXT: this.context,
+                TARGET_ISO: this.replaceTarget.TARGET_ISO,
+                TARGET_LANG: this.replaceTarget.TARGET_LANG,
+                TARGET_COUNTRY: this.replaceTarget.TARGET_COUNTRY,
+                TARGET_DENONYM: this.replaceTarget.TARGET_DENONYM,
+                FROM_ISO: this.replaceFrom.FROM_ISO,
+                FROM_LANG: this.replaceFrom.FROM_LANG,
+                FROM_COUNTRY: this.replaceFrom.FROM_COUNTRY,
+                FROM_DENONYM: this.replaceFrom.FROM_DENONYM,
             });
 
             return await model.block({ addSystemExtra: false });

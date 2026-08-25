@@ -49,8 +49,7 @@ const dbPath = new URL('./db', import.meta.url).pathname;
 const gptrans = new GPTrans({
   path: dbPath,
   from: 'en-US',
-  target: 'es-AR',
-  model: 'sonnet45'
+  target: 'es-AR'
 });
 
 // Translate text with parameter substitution
@@ -79,7 +78,7 @@ When creating a new instance of GPTrans, you can customize:
 | `path` | Absolute directory path for the DeepBase translation cache | Required |
 | `from` | Source language locale (BCP 47) | `en-US` |
 | `target` | Target language locale (BCP 47) | `es` |
-| `model` | Translation model key or array of models for fallback | `sonnet45` `gpt41` |
+| `model` | ModelMix shortcut or array for an ordered fallback chain; append `@<effort>` (`0`–`100`) to override one model | `['sonnet5@50', 'gpt56luna@100']` |
 | `batchThreshold` | Maximum number of characters to accumulate before triggering batch processing | `1500` |
 | `debounceTimeout` | Time in milliseconds to wait before processing translations | `500` |
 | `instruction` | Additional instruction for the translator (e.g., tone, style). Does not affect the cache key | `''` |
@@ -241,7 +240,7 @@ GPTrans supports a fallback mechanism for translation models. Instead of providi
 ```javascript
 const translator = new GPTrans({
   path: dbPath,
-  model: ['claude46', 'gpt54'],
+  model: ['sonnet5@50', 'gpt56luna@100'],
   // ... other options
 });
 ```
@@ -249,6 +248,7 @@ const translator = new GPTrans({
 When using multiple models:
 - The first model in the array is used as the primary translation service
 - If the primary model fails (due to API errors, rate limits, etc.), GPTrans automatically falls back to the next model
+- Use `model@<effort>` with an integer from `0` to `100` to set ModelMix's unified effort for that model only. By default, `sonnet5` uses effort `50`; if it fails, `gpt56luna` uses effort `100`. Models without the suffix keep their configured or provider-default effort.
 - This ensures higher availability and resilience of your translation service
 
 ## ✏️ Refining Translations

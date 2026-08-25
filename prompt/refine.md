@@ -1,12 +1,12 @@
 # Goal
-Refine existing translations in {TARGET_ISO} ({TARGET_DENONYM} {TARGET_LANG}) based on the following instruction.
+Refine existing translations in <%- TARGET_ISO %> (<%- TARGET_DENONYM %> <%- TARGET_LANG %>) based on the following instruction.
 
 ## Refinement Instruction
-{INSTRUCTION}
+<%- INSTRUCTION %>
 
 ## Current Translations to Evaluate
 ```
-{INPUT}
+<%- INPUT %>
 ```
 
 # Return Format
@@ -23,4 +23,4 @@ Refine existing translations in {TARGET_ISO} ({TARGET_DENONYM} {TARGET_LANG}) ba
    - **Consistency:** Maintain consistent terminology across all translations in the batch.
 
 # Context
-{CONTEXT}
+<%- CONTEXT %>

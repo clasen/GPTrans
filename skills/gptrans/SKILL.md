@@ -86,8 +86,7 @@ const dbPath = new URL('./db', import.meta.url).pathname;
 const gptrans = new GPTrans({
   path: dbPath,
   from: 'en-US',
-  target: 'es-AR',
-  model: 'sonnet45'
+  target: 'es-AR'
 });
 
 // Translate text — returns original on first call, cached translation after
@@ -106,7 +105,7 @@ console.log(gptrans.setContext().t('Welcome back'));
 | --- | --- | --- | --- |
 | `from` | `string` | `'en-US'` | Source language (BCP 47) |
 | `target` | `string` | `'es'` | Target language (BCP 47) |
-| `model` | `string \| string[]` | `'sonnet45'` | Model key or array for fallback chain |
+| `model` | `string \| string[]` | `['sonnet5@50', 'gpt56luna@100']` | ModelMix shortcut or ordered fallback chain; supports `@<effort>` from `0` to `100` |
 | `batchThreshold` | `number` | `1500` | Max characters before triggering batch |
 | `debounceTimeout` | `number` | `500` | Milliseconds to wait before processing |
 | `freeze` | `boolean` | `false` | Prevent new translations from being queued |
@@ -134,9 +133,11 @@ const gptrans = new GPTrans({
   path: dbPath,
   from: 'en',
   target: 'fr',
-  model: ['sonnet45', 'gpt41']  // falls back to gpt41 if sonnet45 fails
+  model: ['sonnet5@50', 'gpt56luna@100']
 });
 ```
+
+Use `model@<effort>` with an integer from `0` to `100` to override the unified effort for one model. The default chain uses `sonnet5` at effort `50`, then falls back to `gpt56luna` at effort `100`.
 
 ### Pre-translate all pending texts
 
@@ -268,8 +269,7 @@ await gptrans.purge();
 const es2ar = new GPTrans({
   path: dbPath,
   from: 'es-ES',
-  target: 'es-AR',
-  model: 'sonnet45'
+  target: 'es-AR'
 });
 
 console.log(es2ar.t('Eres muy bueno'));
@@ -295,7 +295,7 @@ if (GPTrans.isLanguageAvailable('pt-BR')) {
 - Use `setContext()` for gender-aware or domain-specific translations. Context is captured per-batch and auto-resets when changed.
 - Use the `instruction` constructor option for style/tone guidance (e.g., "Use a more natural tone"). Unlike `context`, `instruction` does NOT affect the cache key — different instructions for the same text overwrite the same translation entry.
 - Prefer passing an array of instructions to `refine()` over multiple calls — it processes everything in a single API pass.
-- Use model arrays (`model: ['sonnet45', 'gpt41']`) for production resilience with automatic fallback.
+- Use model arrays (`model: ['sonnet5@50', 'gpt56luna@100']`) for production resilience with automatic fallback. The optional `@<effort>` suffix accepts integers from `0` to `100` and applies only to that model.
 - Translation caches live in `db/gptrans_<locale>.json`. These files can be manually edited to override specific translations.
 - The `name` constructor option isolates cache files (`db/gptrans_<name>_<locale>.json`), useful for multiple independent translation contexts in the same project.
 - When translating images, ensure `GEMINI_API_KEY` is set. The `img()` method auto-creates sibling language folders.

@@ -66,10 +66,18 @@ const model = ModelMix.new()
 
 If `sonnet45` fails, it automatically tries `gpt5mini`, then `gemini3flash`.
 
+The equivalent `chain()` syntax accepts `shortcut@<effort>` to override unified effort for one model. `<effort>` must be an integer from `0` to `100`; models without the suffix keep their configured or provider-default effort:
+
+```javascript
+const model = ModelMix.new()
+    .chain('sonnet5@50', 'gpt56luna@100');
+```
+
 ## Available Model Shorthands
 
 - **OpenAI**: `gpt52` `gpt51` `gpt5` `gpt5mini` `gpt5nano` `gpt41` `gpt41mini` `gpt41nano`
-- **Anthropic**: `opus46` `opus45` `sonnet45` `sonnet4` `haiku45` `haiku35` (thinking variants: add `think` suffix)
+- **Anthropic**: `opus46` `opus45` `sonnet5` `sonnet45` `sonnet4` `haiku45` `haiku35` (thinking variants: add `think` suffix)
+- **OpenAI Codex**: `gpt56sol` `gpt56terra` `gpt56luna`
 - **Google**: `gemini3pro` `gemini3flash` `gemini25pro` `gemini25flash`
 - **Grok**: `grok4` `grok41` (thinking variant available)
 - **Perplexity**: `sonar` `sonarPro`
@@ -158,11 +166,11 @@ const description = await model.message();
 const model = ModelMix.new().gpt5mini();
 model.setSystemFromFile('./prompts/system.md');
 model.addTextFromFile('./prompts/task.md');
-model.replace({
-    '{role}': 'data analyst',
-    '{language}': 'Spanish'
+model.assign({
+    role: 'data analyst',
+    language: 'Spanish'
 });
-model.replaceKeyFromFile('{code}', './src/utils.js');
+model.assignKeyFromFile('code', './src/utils.js');
 console.log(await model.message());
 ```
 
@@ -268,7 +276,7 @@ const reply = await chat.message();  // "Martin"
 - Use `.json()` for structured output instead of parsing text manually.
 - Use `.message()` for simple text, `.raw()` when you need tokens/thinking/toolCalls.
 - For thinking models, append `think` to the method name (e.g. `sonnet45think()`).
-- Template placeholders use `{key}` syntax in both system prompts and user messages.
+- Template placeholders use EJS syntax such as `<%- key %>` in system prompts and user messages.
 - The library uses CommonJS internally (`require`) but supports ESM import via `{ ModelMix }`.
 - Available provider Mix classes for custom setups: `MixOpenAI`, `MixAnthropic`, `MixGoogle`, `MixPerplexity`, `MixGroq`, `MixTogether`, `MixGrok`, `MixOpenRouter`, `MixOllama`, `MixLMStudio`, `MixCustom`, `MixCerebras`, `MixFireworks`, `MixMiniMax`.
 
@@ -282,8 +290,9 @@ const reply = await chat.message();  // "Martin"
 | `.setSystemFromFile(path)` | `this` | Set system prompt from file |
 | `.addImage(path)` | `this` | Add image from file |
 | `.addImageFromUrl(url)` | `this` | Add image from URL or data URI |
-| `.replace({})` | `this` | Set placeholder replacements |
-| `.replaceKeyFromFile(key, path)` | `this` | Replace placeholder with file content |
+| `.assign({})` | `this` | Assign EJS template data |
+| `.assignKeyFromFile(key, path)` | `this` | Assign rendered file content to one template key |
+| `.chain(...models)` | `this` | Attach ordered shortcuts; each may use `@<effort>` from `0` to `100` |
 | `.message()` | `Promise<string>` | Get text response |
 | `.json(example, desc?, opts?)` | `Promise<object>` | Get structured JSON |
 | `.raw()` | `Promise<{message, think, toolCalls, tokens, response}>` | Full response |
